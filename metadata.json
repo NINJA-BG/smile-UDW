@@ -1,0 +1,6 @@
+{
+  "name": "SmileUnderwrite",
+  "description": "ระบบติดตามงานและตรวจสอบรายการส่งขออนุมัติพิจารณารับประกันภัย พร้อมแดชบอร์ดสถานะคิวงานแบบเรียลไทม์",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
