@@ -37,11 +37,14 @@ import {
   AlertTriangle,
   ShieldCheck,
   UserCheck,
-  MessageSquare
+  MessageSquare,
+  BadgeAlert,
+  AlertCircle
 } from 'lucide-react';
-import { UnderwritingCase } from '../types';
+import { UnderwritingCase, CustomerChangeRequest } from '../types';
 import { ThaiIdCardGraphic } from './ThaiIdCardGraphic';
 import { InspectionSummaryView } from './InspectionSummaryView';
+import { CustomerChangeRequestAlertBox } from './CustomerChangeRequestAlertBox';
 
 interface UnderwritingInspectionDetailViewProps {
   caseItem: UnderwritingCase;
@@ -60,6 +63,68 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
   // Collapsible section states
   const [isInsuredInfoOpen, setIsInsuredInfoOpen] = useState<boolean>(true);
   const [isPayerCheckOpen, setIsPayerCheckOpen] = useState<boolean>(true);
+
+  // Customer change request state - ensures ANY case inspected displays and can demonstrate this feature
+  const [currentChangeRequest, setCurrentChangeRequest] = useState<CustomerChangeRequest>(
+    caseItem.customerChangeRequest?.hasRequest
+      ? caseItem.customerChangeRequest
+      : {
+          hasRequest: true,
+          source: 'ลูกค้า (Customer)',
+          requesterName: caseItem.insuredName || 'น.ส. ทานตะวัน รุ่งรัศมีทรัพย์สิน',
+          requesterRole: 'ผู้เอาประกันภัย / ผู้ชำระเบี้ย',
+          requestDate: '18/09/2569',
+          requestTime: '13:45 น.',
+          category: 'ข้อมูลผู้ชำระเบี้ย',
+          reason: 'ขอแก้ไขและยืนยันข้อมูลผู้ชำระเบี้ยประกันภัยเป็นตนเอง พร้อมปรับปรุงเบอร์โทรศัพท์ติดต่อ',
+          details: 'ลูกค้าได้กดทำรายการขอแก้ไขข้อมูลเข้ามาผ่านระบบ Smile Service Online โดยระบุขอเปลี่ยนข้อมูลผู้ชำระเบี้ยประกันภัยเป็นตนเอง (Self) และปรับปรุงเบอร์โทรศัพท์ติดต่อที่สะดวกรับสาย',
+          oldValue: 'ผู้ชำระเบี้ย: ไม่ระบุเลขบัญชีตัดเบี้ยอัตโนมัติ / เบอร์โทร 081-234-xxxx',
+          newValue: 'ผู้ชำระเบี้ย: ตนเอง (Self) ตัดบัญชี KBank 023-x-xxxx-8 / เบอร์โทร 089-888-9999',
+          attachedDocuments: ['สำเนาหน้าสมุดบัญชีเงินฝาก_KBank.pdf', 'สลิปการทำรายการผ่านแอป_SmilePay.jpg'],
+          status: 'รอดำเนินการตรวจ'
+        }
+  );
+
+  const handleSwitchSource = (source: 'customer' | 'provider' | 'hide') => {
+    if (source === 'customer') {
+      setCurrentChangeRequest({
+        hasRequest: true,
+        source: 'ลูกค้า (Customer)',
+        requesterName: caseItem.insuredName || 'น.ส. ทานตะวัน รุ่งรัศมีทรัพย์สิน',
+        requesterRole: 'ผู้เอาประกันภัย / ผู้ชำระเบี้ย',
+        requestDate: '18/09/2569',
+        requestTime: '13:45 น.',
+        category: 'ข้อมูลผู้ชำระเบี้ย',
+        reason: 'ขอแก้ไขและยืนยันข้อมูลผู้ชำระเบี้ยประกันภัยเป็นตนเอง พร้อมปรับปรุงเบอร์โทรศัพท์',
+        details: 'ลูกค้าได้กดทำรายการขอแก้ไขข้อมูลเข้ามาผ่านระบบ Smile Service Online โดยระบุขอเปลี่ยนข้อมูลผู้ชำระเบี้ยประกันภัยเป็นตนเอง (Self) และปรับปรุงเบอร์โทรศัพท์ติดต่อที่สะดวกรับสาย',
+        oldValue: 'ผู้ชำระเบี้ย: ไม่ระบุเลขบัญชีตัดเบี้ยอัตโนมัติ / เบอร์โทร 081-234-xxxx',
+        newValue: 'ผู้ชำระเบี้ย: ตนเอง (Self) ตัดบัญชี KBank 023-x-xxxx-8 / เบอร์โทร 089-888-9999',
+        attachedDocuments: ['สำเนาหน้าสมุดบัญชีเงินฝาก_KBank.pdf', 'สลิปการทำรายการผ่านแอป_SmilePay.jpg'],
+        status: 'รอดำเนินการตรวจ'
+      });
+      triggerToast('สลับดูตัวอย่าง: การแจ้งขอแก้ไขจาก "ลูกค้า" (18/09/2569 13:45 น.)');
+    } else if (source === 'provider') {
+      setCurrentChangeRequest({
+        hasRequest: true,
+        source: 'ผู้ให้บริการ (Service Provider / Agent)',
+        requesterName: 'นาย สมนึก การขายดี',
+        requesterRole: 'ตัวแทนผู้ดูแลคิวงาน (Agent ID: AG-88902)',
+        requestDate: '18/09/2569',
+        requestTime: '10:05 น.',
+        category: 'ข้อมูลผู้ชำระเบี้ย',
+        reason: 'ตัวแทนประสานงานแจ้งเปลี่ยนข้อมูลผู้ชำระเบี้ยตามคำร้องของลูกค้า',
+        details: 'ตัวแทนได้ติดต่อลูกค้าเพื่อยืนยันการทำรายการ และแจ้งประสานงานขอแก้ไขข้อมูลผู้ชำระเบี้ยประกันภัยในระบบแทนลูกค้า พร้อมส่งเอกสารรับรอง',
+        oldValue: 'ผู้ชำระเบี้ย: นายสมชาย รุ่งรัศมีทรัพย์สิน (บิดา)',
+        newValue: 'ผู้ชำระเบี้ย: น.ส. ทานตะวัน รุ่งรัศมีทรัพย์สิน (ตนเอง) ตัดบัญชีอัตโนมัติ',
+        attachedDocuments: ['หนังสือยินยอมให้หักบัญชีเงินฝาก.pdf', 'ใบมอบอำนาจและบัตรตัวแทน.pdf'],
+        status: 'รอดำเนินการตรวจ'
+      });
+      triggerToast('สลับดูตัวอย่าง: การแจ้งขอแก้ไขจาก "ผู้ให้บริการ/ตัวแทน" (18/09/2569 10:05 น.)');
+    } else {
+      setCurrentChangeRequest(prev => ({ ...prev, hasRequest: false }));
+      triggerToast('ซ่อนกล่องแจ้งเตือน');
+    }
+  };
 
   // OCR state
   const [isOcrEnabled, setIsOcrEnabled] = useState<boolean>(false);
@@ -342,6 +407,48 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
 
       {/* 3. MAIN WORKSPACE CONTAINER */}
       <div className="max-w-[1520px] mx-auto px-3 sm:px-6 py-4 space-y-4">
+
+        {/* Top Notification Banner: Alerts underwriter immediately about Change Request */}
+        {currentChangeRequest?.hasRequest && (
+          <div className="bg-orange-50/70 border border-orange-200 rounded-xl p-3 text-slate-800 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-1.5 bg-orange-100 rounded-lg shrink-0">
+                <AlertCircle className="w-4 h-4 text-orange-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-xs text-slate-900">
+                    มีรายการแจ้งขอแก้ไขข้อมูล
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-white text-orange-800 border border-orange-200">
+                    {currentChangeRequest.source}
+                  </span>
+                  <span className="text-xs text-slate-500 font-mono">
+                    {currentChangeRequest.requestDate} {currentChangeRequest.requestTime}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  ชื่อผู้แจ้ง: <span className="font-medium text-slate-900">{currentChangeRequest.requesterName}</span> • หมายเหตุ: <span className="text-slate-700">{currentChangeRequest.details || currentChangeRequest.reason}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('customer-change-request-section');
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el?.classList.add('ring-2', 'ring-orange-400');
+                  setTimeout(() => el?.classList.remove('ring-2', 'ring-orange-400'), 2500);
+                }}
+                className="px-3 py-1.5 bg-white hover:bg-orange-50 text-orange-900 font-semibold rounded-lg text-xs border border-orange-200 shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
+              >
+                <span>ไปยังกล่องแจ้งเตือน ↓</span>
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* White Base Card holding Stepper and Top Context */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
@@ -1443,6 +1550,19 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                 </p>
               </div>
 
+            </div>
+
+            {/* ========================================================== */}
+            {/* กล่องแจ้งเตือน: กรณีลูกค้า/ผู้ให้บริการ มีการแจ้งขอแก้ไขข้อมูลเข้ามา */}
+            {/* วางอยู่ก่อนกล่องผลการตรวจสอบ ตามที่ผู้ใช้ระบุ */}
+            {/* ========================================================== */}
+            <div id="customer-change-request-section" className="scroll-mt-24 transition-all rounded-xl">
+              {currentChangeRequest?.hasRequest && (
+                <CustomerChangeRequestAlertBox
+                  changeRequest={currentChangeRequest}
+                  onSwitchSource={handleSwitchSource}
+                />
+              )}
             </div>
 
             {/* ========================================================== */}

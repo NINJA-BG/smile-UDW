@@ -36,7 +36,14 @@ export default function App() {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.some(c => c.id === 'case-screen-1')) {
-          return parsed;
+          // Merge customerChangeRequest from INITIAL_CASES if cached item lacks it
+          return parsed.map(c => {
+            const init = INITIAL_CASES.find(i => i.id === c.id);
+            if (init?.customerChangeRequest && !c.customerChangeRequest) {
+              return { ...c, customerChangeRequest: init.customerChangeRequest };
+            }
+            return c;
+          });
         }
       } catch (e) {
         console.error('Failed to parse saved cases', e);

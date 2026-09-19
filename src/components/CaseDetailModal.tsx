@@ -24,6 +24,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { QUEUE_STATUSES } from '../data/mockData';
+import { CustomerChangeRequestAlertBox } from './CustomerChangeRequestAlertBox';
 
 interface CaseDetailModalProps {
   caseItem: UnderwritingCase | null;
@@ -226,6 +227,13 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
           {activeTab === 'info' && (
             <div className="space-y-6">
               
+              {/* Alert Box for Customer Change Request if present */}
+              {caseItem.customerChangeRequest?.hasRequest && (
+                <CustomerChangeRequestAlertBox
+                  changeRequest={caseItem.customerChangeRequest}
+                />
+              )}
+
               {/* Financial Highlight Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">

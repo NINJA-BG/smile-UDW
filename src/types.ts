@@ -81,4 +81,22 @@ export interface UnderwritingCase {
   documentErrorReason?: string; // สาเหตุเอกสารผิด เช่น ลายเซ็นไม่ตรง, สำเนาบัตรหมดอายุ
   requiresSpecialInspection?: boolean; // ต้องตรวจสอบพิเศษ
   specialInspectionType?: 'เอกสารผิด' | 'ทุนสูงผิดปกติ' | 'ประวัติสุขภาพ' | 'สงสัยทุจริต' | 'อื่นๆ';
+  customerChangeRequest?: CustomerChangeRequest; // ข้อมูลการแจ้งขอแก้ไขข้อมูลจากลูกค้าหรือผู้ให้บริการ
 }
+
+export interface CustomerChangeRequest {
+  hasRequest: boolean; // มีการกดขอแก้ไขข้อมูลเข้ามาหรือไม่
+  source: 'ลูกค้า (Customer)' | 'ผู้ให้บริการ (Service Provider / Agent)'; // แหล่งที่มาของการแจ้ง
+  requesterName: string; // ชื่อผู้แจ้ง เช่น คุณทานตะวัน (ลูกค้า) หรือ คุณสมชาย (ศูนย์บริการลูกค้า)
+  requesterRole?: string; // บทบาท เช่น ผู้เอาประกันภัย, เจ้าหน้าที่ Call Center, ผู้แทนฝ่ายขาย
+  requestDate: string; // วันที่แจ้ง เช่น 18/09/2569
+  requestTime: string; // เวลาที่แจ้ง เช่น 14:25 น.
+  category: 'ข้อมูลผู้ชำระเบี้ย' | 'ข้อมูลผู้เอาประกัน' | 'ที่อยู่จัดส่งเอกสาร' | 'บัญชี/วิธีชำระเงิน' | 'อื่นๆ';
+  reason: string; // สาเหตุหรือหัวข้อการขอเปลี่ยน เช่น ขอเปลี่ยนผู้ชำระเบี้ยเป็นคู่สมรส
+  details: string; // รายละเอียดการขอเปลี่ยน
+  oldValue?: string; // ข้อมูลเดิม
+  newValue?: string; // ข้อมูลใหม่ที่ต้องการเปลี่ยน
+  attachedDocuments?: string[]; // เอกสารประกอบการขอแก้ไขที่แนบมา
+  status: 'รอดำเนินการตรวจ' | 'รับทราบและปรับปรุงแล้ว' | 'ปฏิเสธคำขอ';
+}
+

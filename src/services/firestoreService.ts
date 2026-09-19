@@ -40,9 +40,28 @@ export async function initializeFirestoreData(): Promise<UnderwritingCase[]> {
     }
 
     const loadedCases: UnderwritingCase[] = [];
+    const batch = writeBatch(db);
+    let hasUpdates = false;
+
     snapshot.forEach((docSnap) => {
-      loadedCases.push({ ...(docSnap.data() as UnderwritingCase), id: docSnap.id });
+      const data = docSnap.data() as UnderwritingCase;
+      const initialMatch = INITIAL_CASES.find((c) => c.id === docSnap.id);
+      
+      // Auto-merge customerChangeRequest if initial data has it but Firestore doc does not
+      if (initialMatch?.customerChangeRequest && !data.customerChangeRequest) {
+        data.customerChangeRequest = initialMatch.customerChangeRequest;
+        batch.set(docSnap.ref, { customerChangeRequest: initialMatch.customerChangeRequest }, { merge: true });
+        hasUpdates = true;
+      }
+
+      loadedCases.push({ ...data, id: docSnap.id });
     });
+
+    if (hasUpdates) {
+      await batch.commit();
+      console.log('Successfully synced customerChangeRequest to existing Firestore documents.');
+    }
+
     return loadedCases;
   } catch (error) {
     console.error('Error initializing/loading Firestore cases:', error);

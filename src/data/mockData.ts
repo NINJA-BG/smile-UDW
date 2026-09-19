@@ -31,6 +31,21 @@ export const INITIAL_CASES: UnderwritingCase[] = [
     underwriterAssigned: 'กฤษณะ วงศ์แพทย์ (UW-01)',
     healthConditions: ['ตรวจสุขภาพปกติ', 'ไม่มีโรคประจำตัว'],
     isUrgent: false,
+    customerChangeRequest: {
+      hasRequest: true,
+      source: 'ลูกค้า (Customer)',
+      requesterName: 'นางสาวทานตะวัน รุ่งรัศมีทรัพย์',
+      requesterRole: 'ผู้เอาประกันภัย / ผู้ชำระเบี้ย',
+      requestDate: '18/09/2569',
+      requestTime: '13:45 น.',
+      category: 'ข้อมูลผู้ชำระเบี้ย',
+      reason: 'ขอแก้ไขและยืนยันข้อมูลผู้ชำระเบี้ยประกันภัยเป็นตนเอง พร้อมปรับปรุงเบอร์โทรศัพท์ที่ติดต่อได้',
+      details: 'ลูกค้าได้กดทำรายการผ่านแอปพลิเคชัน Smile Service ยืนยันว่าเป็นผู้ชำระเบี้ยด้วยตนเอง 100% พร้อมแนบสลิปและสำเนาหน้าสมุดบัญชีธนาคารกสิกรไทยเพิ่มเติม',
+      oldValue: 'ผู้ชำระเบี้ย: ไม่ระบุเลขบัญชีตัดเบี้ยอัตโนมัติ / เบอร์โทร 081-234-xxxx',
+      newValue: 'ผู้ชำระเบี้ย: ตนเอง (Self) หักบัญชีกสิกรไทย 023-x-xxxx-8 / เบอร์โทร 089-888-9999',
+      attachedDocuments: ['สำเนาหน้าสมุดบัญชีเงินฝาก.pdf', 'สลิปทำรายการ_SmilePay.jpg'],
+      status: 'รอดำเนินการตรวจ'
+    },
     documents: [
       { id: 'doc-s1', name: 'ใบคำขอเอาประกันภัย Application 690300001', type: 'PDF', status: 'ครบถ้วน', uploadDate: '2026-09-18' },
       { id: 'doc-s2', name: 'สำเนาบัตรประชาชน', type: 'PDF', status: 'ครบถ้วน', uploadDate: '2026-09-18' },
@@ -148,6 +163,21 @@ export const INITIAL_CASES: UnderwritingCase[] = [
     underwriterAssigned: 'กฤษณะ วงศ์แพทย์ (UW-01)',
     healthConditions: [],
     isUrgent: true,
+    customerChangeRequest: {
+      hasRequest: true,
+      source: 'ผู้ให้บริการ (Service Provider / Agent)',
+      requesterName: 'คุณสมศักดิ์ ตัวแทนรหัส 08876',
+      requesterRole: 'ตัวแทนประกันชีวิต / ผู้ให้บริการ',
+      requestDate: '18/09/2569',
+      requestTime: '10:05 น.',
+      category: 'ข้อมูลผู้ชำระเบี้ย',
+      reason: 'ตัวแทนส่งคำร้องขอเปลี่ยนผู้ชำระเบี้ยประกันภัยเนื่องจากระบุความสัมพันธ์สับสน',
+      details: 'ตัวแทนผู้ให้บริการตรวจสอบพบว่าผู้ชำระเบี้ยคือคู่สมรส ได้ขอเปลี่ยนแปลงชื่อผู้ชำระเบี้ยให้ถูกต้องตามหลักฐานสลิปโอนเงินที่ส่งใหม่',
+      oldValue: 'ผู้ชำระเบี้ย: นายธนกร ประเสริฐศรี (ตนเอง)',
+      newValue: 'ผู้ชำระเบี้ย: นางสาวปวีณา สุขใจ (คู่สมรส)',
+      attachedDocuments: ['หนังสือยินยอมชำระเบี้ยแทน.pdf', 'ทะเบียนสมรส.pdf'],
+      status: 'รอดำเนินการตรวจ'
+    },
     documents: [
       { id: 'doc-s6', name: 'ใบคำขอฉบับแก้ไขจุดที่ 1', type: 'PDF', status: 'ครบถ้วน', uploadDate: '2026-09-18' },
     ],

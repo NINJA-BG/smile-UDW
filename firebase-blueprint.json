@@ -35,6 +35,7 @@
         "age": { "type": "number" },
         "gender": { "type": "string" },
         "paymentMethod": { "type": "string" },
+        "customerChangeRequest": { "type": "object" },
         "history": { "type": "array" }
       },
       "required": ["id", "insuredName", "status"]

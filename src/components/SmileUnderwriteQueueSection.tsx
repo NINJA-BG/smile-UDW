@@ -19,7 +19,9 @@ import {
   FileWarning,
   AlertCircle,
   ClipboardCheck,
-  Send
+  Send,
+  UserCheck,
+  BadgeAlert
 } from 'lucide-react';
 import { UnderwritingCase, QueueStatus, InsuranceType } from '../types';
 import { INSURANCE_TYPES } from '../data/mockData';
@@ -680,6 +682,46 @@ export const SmileUnderwriteQueueSection: React.FC<SmileUnderwriteQueueSectionPr
 
       </div>
 
+      {/* 2.5 Alert Notification Banner for Change Requests */}
+      <div className="bg-orange-50/70 border border-orange-200 rounded-xl p-3 text-slate-800 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="flex items-center space-x-2.5">
+          <div className="p-1.5 bg-orange-100 rounded-lg shrink-0">
+            <AlertCircle className="w-4 h-4 text-orange-600" />
+          </div>
+          <div>
+            <h4 className="font-semibold text-xs text-slate-900 flex items-center gap-2">
+              <span>รายการแจ้งขอแก้ไขข้อมูล</span>
+              <span className="text-[11px] bg-white px-2 py-0.5 rounded-full font-semibold text-orange-800 border border-orange-200">รอดำเนินการ 2 รายการ</span>
+            </h4>
+            <p className="text-xs text-slate-600 mt-0.5">
+              แสดงรายละเอียดก่อนกล่องผลการตรวจสอบ พร้อมระบุประเภทผู้แจ้ง ชื่อ วันที่ เวลา และหมายเหตุ
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              const targetCase = cases.find(c => c.customerChangeRequest?.source.includes('ลูกค้า')) || cases[0];
+              onOpenEditStatus(targetCase);
+            }}
+            className="px-3 py-1.5 bg-white hover:bg-orange-50 text-orange-950 rounded-lg text-xs font-semibold transition-colors border border-orange-200 shadow-2xs cursor-pointer flex items-center gap-1.5"
+          >
+            <span>ลูกค้าขอแก้ไข (18/09/2569)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const targetCase = cases.find(c => c.customerChangeRequest?.source.includes('ผู้ให้บริการ') || c.customerChangeRequest?.source.includes('ตัวแทน')) || cases[3] || cases[0];
+              onOpenEditStatus(targetCase);
+            }}
+            className="px-3 py-1.5 bg-white hover:bg-orange-50 text-orange-950 rounded-lg text-xs font-semibold transition-colors border border-orange-200 shadow-2xs cursor-pointer flex items-center gap-1.5"
+          >
+            <span>ผู้ให้บริการขอแก้ไข (18/09/2569)</span>
+          </button>
+        </div>
+      </div>
+
       {/* 3. Table with Exact Blue Header Bar (matching screenshot) */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
@@ -826,9 +868,27 @@ export const SmileUnderwriteQueueSection: React.FC<SmileUnderwriteQueueSectionPr
                         {c.insuredName}
                       </td>
 
-                      {/* ชื่อ-สกุลผู้ชำระเบี้ย */}
+                      {/* ชื่อ-สกุลผู้ชำระเบี้ย พร้อมป้ายแจ้งเตือนเมื่อมีการขอแก้ไขข้อมูล */}
                       <td className="py-3.5 px-4 text-slate-700 whitespace-nowrap">
-                        {c.payerName}
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span>{c.payerName}</span>
+                          {c.customerChangeRequest?.hasRequest && (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors"
+                              title={`มีแจ้งขอแก้ไข: ${c.customerChangeRequest.reason} (${c.customerChangeRequest.source}) ${c.customerChangeRequest.requestDate} ${c.customerChangeRequest.requestTime}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenEditStatus(c);
+                              }}
+                            >
+                              <UserCheck className="w-3 h-3 text-slate-500" />
+                              <span>
+                                {c.customerChangeRequest.source.includes('ลูกค้า') ? 'ลูกค้าขอแก้ไข' : 'ผู้ให้บริการขอแก้ไข'}
+                              </span>
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* วันที่หมดอายุ */}
@@ -904,14 +964,23 @@ export const SmileUnderwriteQueueSection: React.FC<SmileUnderwriteQueueSectionPr
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          {/* 3. Edit / Status Update (Orange pencil icon) */}
+                          {/* 3. Edit / Inspection View (Pencil icon) */}
                           <button
                             type="button"
                             onClick={() => onOpenEditStatus(c)}
-                            title="แก้ไขหรืออัปเดตสถานะการพิจารณา"
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-amber-500 hover:bg-amber-100/70 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                            title={c.customerChangeRequest?.hasRequest 
+                              ? `เปิดหน้ารายละเอียดการตรวจสอบ (มีแจ้งขอแก้ไขจาก${c.customerChangeRequest.source})` 
+                              : "เปิดหน้ารายละเอียดการตรวจสอบ (Inspection Detail View)"}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer relative ${
+                              c.customerChangeRequest?.hasRequest
+                                ? 'bg-slate-200 text-slate-800 hover:bg-slate-300'
+                                : 'text-slate-600 hover:bg-slate-100'
+                            }`}
                           >
                             <Pencil className="w-4 h-4" />
+                            {c.customerChangeRequest?.hasRequest && (
+                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-slate-600 rounded-full"></span>
+                            )}
                           </button>
 
                         </div>
