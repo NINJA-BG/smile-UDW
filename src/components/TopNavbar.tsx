@@ -4,7 +4,11 @@ import {
   Search, 
   Bell, 
   Plus, 
-  ChevronDown
+  ChevronDown,
+  Cloud,
+  CheckCircle2,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
 interface TopNavbarProps {
@@ -13,6 +17,8 @@ interface TopNavbarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   urgentCount: number;
+  firebaseStatus?: 'synced' | 'syncing' | 'error';
+  onSyncNow?: () => void;
 }
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({
@@ -21,6 +27,8 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   searchQuery,
   onSearchChange,
   urgentCount,
+  firebaseStatus = 'synced',
+  onSyncNow
 }) => {
   return (
     <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between shadow-2xs">
@@ -45,9 +53,36 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         </div>
       </div>
 
-      {/* Right: Search, Notifications, Avatar (matching screenshot header) */}
+      {/* Right: Search, Firebase sync indicator, Notifications, Avatar */}
       <div className="flex items-center space-x-3">
         
+        {/* Firebase Cloud Sync Status Badge */}
+        <button
+          type="button"
+          onClick={onSyncNow}
+          title="สถานะการเชื่อมต่อฐานข้อมูล Firebase Firestore (smileUDW)"
+          className="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all cursor-pointer bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+        >
+          <Cloud className="w-3.5 h-3.5 text-blue-600" />
+          <span className="font-bold text-blue-700">smileUDW</span>
+          {firebaseStatus === 'syncing' ? (
+            <span className="flex items-center space-x-1 text-amber-600">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              <span>กำลังซิงค์</span>
+            </span>
+          ) : firebaseStatus === 'error' ? (
+            <span className="flex items-center space-x-1 text-rose-600">
+              <AlertCircle className="w-3 h-3" />
+              <span>ออฟไลน์</span>
+            </span>
+          ) : (
+            <span className="flex items-center space-x-1 text-emerald-600">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>Firestore คลาวด์</span>
+            </span>
+          )}
+        </button>
+
         {/* Search input with pill styling as in screenshot */}
         <div className="relative hidden md:block w-72 lg:w-80">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">

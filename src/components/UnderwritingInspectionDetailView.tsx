@@ -32,10 +32,16 @@ import {
   Building2,
   ExternalLink,
   Sparkles,
-  Info
+  Info,
+  XCircle,
+  AlertTriangle,
+  ShieldCheck,
+  UserCheck,
+  MessageSquare
 } from 'lucide-react';
 import { UnderwritingCase } from '../types';
 import { ThaiIdCardGraphic } from './ThaiIdCardGraphic';
+import { InspectionSummaryView } from './InspectionSummaryView';
 
 interface UnderwritingInspectionDetailViewProps {
   caseItem: UnderwritingCase;
@@ -106,6 +112,24 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
 
   // Is Insured same as Payer?
   const [isSamePayer, setIsSamePayer] = useState<'yes' | 'no'>('yes');
+  const [payerName, setPayerName] = useState<string>('นายสมชาย รุ่งรัศมีทรัพย์สิน');
+  const [payerRelation, setPayerRelation] = useState<string>('บิดา');
+  const [payerIdNumber, setPayerIdNumber] = useState<string>('3-1005-00123-45-6');
+  const [payerPhone, setPayerPhone] = useState<string>('089-765-4321');
+
+  // Payer Category Verification State (กล่องผลการตรวจสอบ หมวดผู้ชำระเบี้ย)
+  const [payerVerificationStatus, setPayerVerificationStatus] = useState<'valid' | 'invalid'>(
+    caseItem.status === 'เอกสารไม่ถูกต้อง' || caseItem.hasDocumentError ? 'invalid' : 'valid'
+  );
+  const [payerVerificationNote, setPayerVerificationNote] = useState<string>(
+    caseItem.documentErrorReason || ''
+  );
+  const [payerCheckpoints, setPayerCheckpoints] = useState({
+    identityVerified: true,
+    relationshipValid: true,
+    paymentProofMatched: true,
+  });
+  const [isPayerInspectionSaved, setIsPayerInspectionSaved] = useState<boolean>(false);
 
   // Document Viewer states
   const [zoomLevel, setZoomLevel] = useState<number>(100);
@@ -166,15 +190,40 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
 
   // Save changes
   const handleSave = () => {
+    let finalStatus = caseItem.status;
+    if (payerVerificationStatus === 'invalid') {
+      finalStatus = 'เอกสารไม่ถูกต้อง';
+    } else if (caseItem.status === 'เข้ามาใหม่') {
+      finalStatus = 'รอดำเนินการ';
+    }
+
     const updated: UnderwritingCase = {
       ...caseItem,
       insuredName: `${firstName} ${lastName}`,
       insuredIdCard: idNumber,
       insuredGender: gender as 'ชาย' | 'หญิง',
-      status: caseItem.status === 'เข้ามาใหม่' ? 'รอดำเนินการ' : caseItem.status,
+      status: finalStatus,
+      hasDocumentError: payerVerificationStatus === 'invalid',
+      documentErrorReason: payerVerificationStatus === 'invalid'
+        ? (payerVerificationNote.trim() || 'ข้อมูลหมวดผู้ชำระเบี้ยไม่ถูกต้อง')
+        : undefined,
+      history: [
+        {
+          id: `log-${Date.now()}`,
+          timestamp: `2026-09-18 ${new Date().toLocaleTimeString('th-TH')}`,
+          actor: 'สิรภพ ซื่อจริง (01604)',
+          role: 'ผู้พิจารณารับประกัน',
+          action: `ผลตรวจสอบหมวดผู้ชำระเบี้ย: ${payerVerificationStatus === 'valid' ? 'ข้อมูลถูกต้อง' : 'ข้อมูลไม่ถูกต้อง'}`,
+          note: payerVerificationNote.trim() 
+            ? payerVerificationNote.trim() 
+            : (payerVerificationStatus === 'valid' ? 'ข้อมูลผู้ชำระเบี้ยถูกต้องตรงตามเอกสาร' : 'พบข้อผิดพลาดในข้อมูลผู้ชำระเบี้ย'),
+        },
+        ...caseItem.history,
+      ]
     };
     if (onSaveCase) onSaveCase(updated);
-    triggerToast('บันทึกคิวงานและข้อมูลการตรวจสอบเรียบร้อยแล้ว');
+    setIsPayerInspectionSaved(true);
+    triggerToast('บันทึกผลการตรวจสอบหมวดผู้ชำระเบี้ยและคิวงานเรียบร้อย');
   };
 
   // BMI Calculation
@@ -319,6 +368,9 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                   >
                     <StepIcon className={`w-4 h-4 ${isActive ? 'text-[#0072b2]' : isPassed ? 'text-emerald-600' : 'text-slate-400'}`} />
                     <span className="text-xs whitespace-nowrap">{st.label}</span>
+                    {st.id === 6 && payerVerificationStatus === 'invalid' && (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                    )}
                   </button>
 
                   {index < steps.length - 1 && (
@@ -373,12 +425,57 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                 <span>เคสมีจุดตรวจสอบ {caseItem.checkpointsCount} จุด</span>
               </span>
             ) : null}
+
+            {/* Quick jump to Step 6 summary button */}
+            <div className="ml-auto flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => setActiveStep(6)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs ${
+                  activeStep === 6
+                    ? 'bg-[#0072b2] text-white ring-2 ring-blue-300'
+                    : payerVerificationStatus === 'invalid'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                      : 'bg-blue-50 text-[#0072b2] border border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span>หน้าสรุปผลตรวจทุกหมวด & ส่งคิวงาน (Step 6)</span>
+                {payerVerificationStatus === 'invalid' && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold">
+                    พบข้อผิดพลาด
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
         </div>
 
-        {/* 4. TWO-COLUMN SPLIT: Form (Left) & Document Viewer (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* 4. MAIN WORKSPACE: STEP 6 SUMMARY & FORWARDING VIEW OR STEP 1-5 INSPECTION FORM & DOC VIEWER */}
+        {activeStep === 6 ? (
+          <InspectionSummaryView
+            caseItem={caseItem}
+            payerVerificationStatus={payerVerificationStatus}
+            payerVerificationNote={payerVerificationNote}
+            onJumpToStep={(stepId) => setActiveStep(stepId)}
+            onBackToInspection={() => setActiveStep(2)}
+            onFinalizeCase={(updatedCase, actionType) => {
+              if (onSaveCase) onSaveCase(updatedCase);
+              if (actionType === 'forward_agent') {
+                triggerToast(`ส่งต่อคิวงานไปยัง UDW ผู้แทน (${caseItem.agentName || 'เจ้าของงาน'}) เรียบร้อยแล้ว`);
+              } else if (actionType === 'approve') {
+                triggerToast('อนุมัติเอกสารผ่านครบทุกหมวดเรียบร้อยแล้ว');
+              } else {
+                triggerToast('บันทึกเพื่อรอแก้ไขเรียบร้อยแล้ว');
+              }
+              setTimeout(() => {
+                onBack();
+              }, 1200);
+            }}
+          />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           
           {/* ========================================================== */}
           {/* LEFT COLUMN: FORM SECTIONS (Width 7/12 or 8/12) */}
@@ -1007,30 +1104,101 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
               </div>
 
               {isPayerCheckOpen && (
-                <div className="p-5 flex items-center space-x-6 text-xs font-semibold">
-                  <label className="inline-flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="payerRelation"
-                      value="yes"
-                      checked={isSamePayer === 'yes'}
-                      onChange={() => setIsSamePayer('yes')}
-                      className="w-4 h-4 text-[#0072b2] focus:ring-[#0072b2]"
-                    />
-                    <span className="text-slate-800">ใช่</span>
-                  </label>
+                <div className="p-5 space-y-4 text-xs font-semibold">
+                  <div className="flex items-center space-x-6">
+                    <label className="inline-flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="payerRelation"
+                        value="yes"
+                        checked={isSamePayer === 'yes'}
+                        onChange={() => setIsSamePayer('yes')}
+                        className="w-4 h-4 text-[#0072b2] focus:ring-[#0072b2]"
+                      />
+                      <span className="text-slate-800">ใช่ (ผู้เอาประกันชำระเบี้ยเอง)</span>
+                    </label>
 
-                  <label className="inline-flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="payerRelation"
-                      value="no"
-                      checked={isSamePayer === 'no'}
-                      onChange={() => setIsSamePayer('no')}
-                      className="w-4 h-4 text-[#0072b2] focus:ring-[#0072b2]"
-                    />
-                    <span className="text-slate-800">ไม่</span>
-                  </label>
+                    <label className="inline-flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="payerRelation"
+                        value="no"
+                        checked={isSamePayer === 'no'}
+                        onChange={() => setIsSamePayer('no')}
+                        className="w-4 h-4 text-[#0072b2] focus:ring-[#0072b2]"
+                      />
+                      <span className="text-slate-800">ไม่ (บุคคลอื่นเป็นผู้ชำระเบี้ย)</span>
+                    </label>
+                  </div>
+
+                  {/* If not same person, show detailed payer fields */}
+                  {isSamePayer === 'no' && (
+                    <div className="pt-3 border-t border-slate-100 space-y-3 bg-slate-50/70 -mx-5 -mb-5 p-5 rounded-b-xl">
+                      <div className="flex items-center justify-between text-xs text-slate-700 font-bold">
+                        <span>ข้อมูลผู้ชำระเบี้ย (Payer Information)</span>
+                        <span className="text-[11px] text-[#0072b2] font-normal">
+                          * ตรวจสอบผลได้ที่กล่องผลการตรวจสอบด้านขวา
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="block text-slate-600 font-normal mb-1">
+                            ชื่อ-นามสกุล ผู้ชำระเบี้ย
+                          </label>
+                          <input
+                            type="text"
+                            value={payerName}
+                            onChange={(e) => setPayerName(e.target.value)}
+                            className="w-full h-8 px-2.5 rounded border border-slate-300 bg-white text-slate-800 text-xs focus:ring-1 focus:ring-[#0072b2] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-600 font-normal mb-1">
+                            ความสัมพันธ์กับผู้เอาประกันภัย
+                          </label>
+                          <select
+                            value={payerRelation}
+                            onChange={(e) => setPayerRelation(e.target.value)}
+                            className="w-full h-8 px-2.5 rounded border border-slate-300 bg-white text-slate-800 text-xs focus:ring-1 focus:ring-[#0072b2] focus:outline-none"
+                          >
+                            <option value="บิดา">บิดา</option>
+                            <option value="มารดา">มารดา</option>
+                            <option value="คู่สมรส">คู่สมรส</option>
+                            <option value="บุตร">บุตร</option>
+                            <option value="พี่น้องร่วมบิดามารดา">พี่น้องร่วมบิดามารดา</option>
+                            <option value="นายจ้าง/องค์กร">นายจ้าง / องค์กร</option>
+                            <option value="อื่นๆ">อื่นๆ</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-600 font-normal mb-1">
+                            เลขประจำตัวประชาชนผู้ชำระเบี้ย
+                          </label>
+                          <input
+                            type="text"
+                            value={payerIdNumber}
+                            onChange={(e) => setPayerIdNumber(e.target.value)}
+                            className="w-full h-8 px-2.5 rounded border border-slate-300 bg-white text-slate-800 text-xs focus:ring-1 focus:ring-[#0072b2] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-600 font-normal mb-1">
+                            เบอร์โทรศัพท์ติดต่อ
+                          </label>
+                          <input
+                            type="text"
+                            value={payerPhone}
+                            onChange={(e) => setPayerPhone(e.target.value)}
+                            className="w-full h-8 px-2.5 rounded border border-slate-300 bg-white text-slate-800 text-xs focus:ring-1 focus:ring-[#0072b2] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1080,7 +1248,7 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
           {/* ========================================================== */}
           <div className="lg:col-span-4 space-y-4">
             
-            <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-4 sticky top-20">
+            <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-4">
               
               {/* Header: รายละเอียดเอกสาร */}
               <div>
@@ -1277,9 +1445,340 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
 
             </div>
 
+            {/* ========================================================== */}
+            {/* กล่องผลการตรวจสอบ (หมวดผู้ชำระเบี้ย) ตามที่ผู้ใช้ระบุ */}
+            {/* ========================================================== */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-4">
+              
+              {/* Header: กล่องผลการตรวจสอบ */}
+              <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center space-x-1.5">
+                    <ClipboardCheck className="w-4 h-4 text-[#0072b2]" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      กล่องผลการตรวจสอบ
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    หมวดผู้ชำระเบี้ยประกันภัย (Payer Information Verification)
+                  </p>
+                </div>
+
+                {/* Status Pill Badge */}
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-colors ${
+                  payerVerificationStatus === 'valid'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                    : 'bg-rose-50 text-rose-700 border-rose-300'
+                }`}>
+                  {payerVerificationStatus === 'valid' ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>ข้อมูลถูกต้อง</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                      <span>ข้อมูลไม่ถูกต้อง</span>
+                    </>
+                  )}
+                </span>
+              </div>
+
+              {/* Question & Interactive Choice for: ข้อมูลถูกต้อง หรือ ไม่ */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  ระบุผลการตรวจสอบหมวดผู้ชำระเบี้ย <span className="text-rose-500">*</span>
+                </label>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  {/* Option 1: ข้อมูลถูกต้อง */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPayerVerificationStatus('valid');
+                      setIsPayerInspectionSaved(false);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      payerVerificationStatus === 'valid'
+                        ? 'border-emerald-500 bg-emerald-50/80 ring-2 ring-emerald-500/20 text-emerald-950 shadow-xs'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold flex items-center gap-1.5">
+                        <CheckCircle2 className={`w-4 h-4 ${payerVerificationStatus === 'valid' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                        ข้อมูลถูกต้อง
+                      </span>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        payerVerificationStatus === 'valid' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
+                      }`}>
+                        {payerVerificationStatus === 'valid' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                    </div>
+                    <p className="text-[10.5px] mt-1.5 leading-snug text-slate-500">
+                      ผู้ชำระเบี้ยถูกต้อง ตรงตามหลักเกณฑ์
+                    </p>
+                  </button>
+
+                  {/* Option 2: ข้อมูลไม่ถูกต้อง */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPayerVerificationStatus('invalid');
+                      setIsPayerInspectionSaved(false);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      payerVerificationStatus === 'invalid'
+                        ? 'border-rose-500 bg-rose-50/80 ring-2 ring-rose-500/20 text-rose-950 shadow-xs'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold flex items-center gap-1.5">
+                        <XCircle className={`w-4 h-4 ${payerVerificationStatus === 'invalid' ? 'text-rose-600' : 'text-slate-400'}`} />
+                        ข้อมูลไม่ถูกต้อง
+                      </span>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        payerVerificationStatus === 'invalid' ? 'border-rose-600 bg-rose-600' : 'border-slate-300 bg-white'
+                      }`}>
+                        {payerVerificationStatus === 'invalid' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                    </div>
+                    <p className="text-[10.5px] mt-1.5 leading-snug text-slate-500">
+                      พบข้อผิดพลาด หรือเอกสารไม่ครบ
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-checkpoints Checklist */}
+              <div className="bg-slate-50/90 rounded-lg p-2.5 border border-slate-200/80 space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-700 block">
+                  จุดตรวจสอบย่อย (Checklist):
+                </span>
+                
+                <label className="flex items-start space-x-2 text-[11px] text-slate-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={payerCheckpoints.identityVerified}
+                    onChange={(e) => setPayerCheckpoints(prev => ({ ...prev, identityVerified: e.target.checked }))}
+                    className="mt-0.5 rounded text-[#0072b2] focus:ring-[#0072b2]"
+                  />
+                  <span>ชื่อ-สกุล และเลขประจำตัวประชาชนตรงตามหลักฐาน</span>
+                </label>
+
+                <label className="flex items-start space-x-2 text-[11px] text-slate-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={payerCheckpoints.relationshipValid}
+                    onChange={(e) => setPayerCheckpoints(prev => ({ ...prev, relationshipValid: e.target.checked }))}
+                    className="mt-0.5 rounded text-[#0072b2] focus:ring-[#0072b2]"
+                  />
+                  <span>ความสัมพันธ์ระหว่างผู้เอาประกันภัยกับผู้ชำระเบี้ยถูกต้อง</span>
+                </label>
+
+                <label className="flex items-start space-x-2 text-[11px] text-slate-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={payerCheckpoints.paymentProofMatched}
+                    onChange={(e) => setPayerCheckpoints(prev => ({ ...prev, paymentProofMatched: e.target.checked }))}
+                    className="mt-0.5 rounded text-[#0072b2] focus:ring-[#0072b2]"
+                  />
+                  <span>สลิปโอนเงินหรือหลักฐานชำระเบี้ยตรงตามเงื่อนไข</span>
+                </label>
+              </div>
+
+              {/* กล่องหมายเหตุ (Remark / Notes Box) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                    <MessageSquare className="w-3.5 h-3.5 text-[#0072b2]" />
+                    <span>กล่องหมายเหตุการตรวจสอบ</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">
+                    {payerVerificationNote.length}/200 ตัวอักษร
+                  </span>
+                </div>
+
+                <textarea
+                  value={payerVerificationNote}
+                  onChange={(e) => {
+                    setPayerVerificationNote(e.target.value);
+                    setIsPayerInspectionSaved(false);
+                  }}
+                  placeholder={
+                    payerVerificationStatus === 'valid'
+                      ? "ระบุหมายเหตุ เช่น ข้อมูลผู้ชำระเบี้ยถูกต้อง ตรวจสอบสลิปตรงกับระบบแล้ว..."
+                      : "ระบุข้อผิดพลาด เช่น ขาดหนังสือยินยอมชำระแทน, เลขบัตรประชาชนไม่ตรงกับสลิป..."
+                  }
+                  rows={3}
+                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0072b2] focus:border-transparent text-slate-800 placeholder-slate-400 resize-y"
+                />
+
+                {/* Preset Quick Remark Chips */}
+                <div className="pt-0.5">
+                  <span className="text-[10.5px] font-semibold text-slate-500 block mb-1">
+                    เลือกข้อความด่วน:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {payerVerificationStatus === 'valid' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayerVerificationNote("ข้อมูลผู้ชำระเบี้ยถูกต้อง ครบถ้วนตามเกณฑ์");
+                            setIsPayerInspectionSaved(false);
+                          }}
+                          className="text-[10.5px] px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 transition-colors cursor-pointer border border-slate-200"
+                        >
+                          + ข้อมูลครบถ้วนถูกต้อง
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayerVerificationNote("เป็นบุคคลเดียวกับผู้เอาประกันภัย เอกสารสลิปตรงกัน");
+                            setIsPayerInspectionSaved(false);
+                          }}
+                          className="text-[10.5px] px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 transition-colors cursor-pointer border border-slate-200"
+                        >
+                          + เป็นบุคคลเดียวกัน
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayerVerificationNote("ตรวจสอบความสัมพันธ์บิดา/มารดา ถูกต้องตามแบบคำขอ");
+                            setIsPayerInspectionSaved(false);
+                          }}
+                          className="text-[10.5px] px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 transition-colors cursor-pointer border border-slate-200"
+                        >
+                          + ความสัมพันธ์ถูกต้อง
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayerVerificationNote("ชื่อผู้ชำระเบี้ยในสลิปไม่ตรงกับข้อมูลในแบบคำขอ");
+                            setIsPayerInspectionSaved(false);
+                          }}
+                          className="text-[10.5px] px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer border border-rose-200"
+                        >
+                          + ชื่อในสลิปไม่ตรง
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayerVerificationNote("ขาดหนังสือยินยอมการชำระเบี้ยแทน / ความยินยอมหักบัญชี");
+                            setIsPayerInspectionSaved(false);
+                          }}
+                          className="text-[10.5px] px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer border border-rose-200"
+                        >
+                          + ขาดหนังสือยินยอม
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayerVerificationNote("ขาดเอกสารแสดงความสัมพันธ์ระหว่างผู้เอาประกันกับผู้ชำระเบี้ย");
+                            setIsPayerInspectionSaved(false);
+                          }}
+                          className="text-[10.5px] px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer border border-rose-200"
+                        >
+                          + ขาดหลักฐานความสัมพันธ์
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayerVerificationNote("ภาพถ่ายสลิปไม่ชัดเจน ไม่เห็นยอดเงินหรือวันที่ทำรายการ");
+                            setIsPayerInspectionSaved(false);
+                          }}
+                          className="text-[10.5px] px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer border border-rose-200"
+                        >
+                          + สลิปไม่ชัดเจน
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Confirmation Button */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] text-slate-500">
+                  {isPayerInspectionSaved ? (
+                    <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> บันทึกผลแล้ว
+                    </span>
+                  ) : (
+                    <span>ยังไม่ได้บันทึกผลหมวดนี้</span>
+                  )}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center space-x-1.5 ${
+                    payerVerificationStatus === 'valid'
+                      ? 'bg-[#2e7d32] hover:bg-[#256629] text-white'
+                      : 'bg-[#d32f2f] hover:bg-[#b71c1c] text-white'
+                  }`}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>บันทึกผลตรวจหมวดนี้</span>
+                </button>
+              </div>
+
+            </div>
+
+            {/* Step Navigation Bar at bottom of Left Column */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-slate-500">
+                  หมวดที่ {activeStep} จาก 5:
+                </span>
+                <span className="text-xs font-bold text-slate-800">
+                  {steps.find(s => s.id === activeStep)?.label}
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(prev => Math.max(1, prev - 1))}
+                  disabled={activeStep <= 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center space-x-1"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>หมวดก่อนหน้า</span>
+                </button>
+
+                {activeStep < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(prev => Math.min(5, prev + 1))}
+                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer flex items-center space-x-1"
+                  >
+                    <span>หมวดถัดไป</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(6)}
+                  className="px-4 py-1.5 rounded-lg bg-[#0072b2] hover:bg-blue-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer flex items-center space-x-1.5"
+                >
+                  <ClipboardCheck className="w-3.5 h-3.5" />
+                  <span>ตรวจเสร็จทุกหมวดแล้ว ไปหน้าสรุป & ส่งงาน (Step 6)</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
           </div>
 
         </div>
+        )}
 
       </div>
 

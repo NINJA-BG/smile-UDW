@@ -81,11 +81,14 @@ export const QueueTable: React.FC<QueueTableProps> = ({
       case 'รอดำเนินการ':
         return 'bg-amber-50 text-amber-700 border-amber-200 ring-1 ring-amber-500/20';
       case 'เสร็จสิ้น':
+      case 'ตรวจเอกสารผ่าน':
+      case 'อนุมัติตรวจเอกสารผ่าน':
         return 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-1 ring-emerald-500/20';
       case 'ใหม่(แก้ไข)':
         return 'bg-purple-50 text-purple-700 border-purple-200 ring-1 ring-purple-500/20';
       case 'รอดำเนินการ(แก้ไข)':
-        return 'bg-amber-50 text-amber-700 border-amber-200 ring-1 ring-amber-500/20';
+      case 'ส่งกลับแก้ไข (รอผู้แทนดำเนินการ)':
+        return 'bg-sky-50 text-sky-800 border-sky-300 ring-1 ring-sky-500/20';
       case 'เอกสารไม่ถูกต้อง':
         return 'bg-rose-100 text-rose-800 border-rose-300 ring-1 ring-rose-500/30';
       case 'ตรวจสอบพิเศษ':

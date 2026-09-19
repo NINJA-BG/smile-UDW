@@ -18,7 +18,8 @@ import {
   AlertTriangle,
   FileWarning,
   AlertCircle,
-  ClipboardCheck
+  ClipboardCheck,
+  Send
 } from 'lucide-react';
 import { UnderwritingCase, QueueStatus, InsuranceType } from '../types';
 import { INSURANCE_TYPES } from '../data/mockData';
@@ -61,6 +62,7 @@ export const SmileUnderwriteQueueSection: React.FC<SmileUnderwriteQueueSectionPr
     'ตรวจเอกสารผ่าน',
     'ใหม่(แก้ไข)',
     'รอดำเนินการ(แก้ไข)',
+    'ส่งกลับแก้ไข (รอผู้แทนดำเนินการ)',
     'เอกสารไม่ถูกต้อง',
     'ตรวจสอบพิเศษ',
     'ไม่อนุมัติ'
@@ -83,7 +85,7 @@ export const SmileUnderwriteQueueSection: React.FC<SmileUnderwriteQueueSectionPr
       }
       const st = c.status;
       if (st === 'ใหม่' || st === 'เข้ามาใหม่') countNew++;
-      else if (st === 'ใหม่(แก้ไข)') countNewRevised++;
+      else if (st === 'ใหม่(แก้ไข)' || st === 'ส่งกลับแก้ไข (รอผู้แทนดำเนินการ)') countNewRevised++;
       else if (st === 'รอดำเนินการ') countPending++;
       else if (st === 'รอดำเนินการ(แก้ไข)') countPendingRevised++;
       else if (st === 'ตรวจเอกสารผ่าน' || st === 'เสร็จสิ้น' || st === 'อนุมัติตรวจเอกสารผ่าน') countApproved++;
@@ -246,6 +248,13 @@ export const SmileUnderwriteQueueSection: React.FC<SmileUnderwriteQueueSectionPr
         return (
           <span className="inline-block px-4 py-1 rounded-md text-xs font-medium bg-[#fffbeb] text-[#b45309]">
             รอดำเนินการ(แก้ไข)
+          </span>
+        );
+      case 'ส่งกลับแก้ไข (รอผู้แทนดำเนินการ)':
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold bg-[#e0f7fa] text-[#006064] border border-cyan-300">
+            <Send className="w-3 h-3 text-cyan-600" />
+            ส่งกลับแก้ไข (รอผู้แทน)
           </span>
         );
       case 'เอกสารไม่ถูกต้อง':

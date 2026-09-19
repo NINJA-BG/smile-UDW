@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { UnderwritingCase, QueueStatus, InsuranceType, CoverageTerm } from './types';
 import { INITIAL_CASES } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
@@ -20,9 +20,16 @@ import { CaseDetailModal } from './components/CaseDetailModal';
 import { NewCaseModal } from './components/NewCaseModal';
 import { UnderwritingInspectionDetailView } from './components/UnderwritingInspectionDetailView';
 import { CheckCircle2, Info, Flame, Layers, FileSpreadsheet, LayoutDashboard } from 'lucide-react';
+import {
+  initializeFirestoreData,
+  subscribeToCases,
+  saveCaseToFirestore,
+  createCaseInFirestore,
+  resetDatabaseToInitial
+} from './services/firestoreService';
 
 export default function App() {
-  // Application Data State
+  // Application Data State (defaults to INITIAL_CASES, syncs with Firestore)
   const [cases, setCases] = useState<UnderwritingCase[]>(() => {
     const saved = localStorage.getItem('smile_underwrite_cases');
     if (saved) {
@@ -37,6 +44,9 @@ export default function App() {
     }
     return INITIAL_CASES;
   });
+
+  // Firestore Sync Status
+  const [firebaseStatus, setFirebaseStatus] = useState<'synced' | 'syncing' | 'error'>('syncing');
 
   // Inspection View State (opened when clicking the pencil button or inspect action)
   const [inspectingCase, setInspectingCase] = useState<UnderwritingCase | null>(null);
@@ -62,19 +72,64 @@ export default function App() {
   const [isRealtimeActive, setIsRealtimeActive] = useState(true);
   const [toastMessage, setToastMessage] = useState<{ title: string; message: string; type: 'info' | 'success' | 'urgent' } | null>(null);
 
-  // Save to LocalStorage whenever cases change
+  // 1. Initialize Firestore & Subscribe to Real-time Updates
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+    let isMounted = true;
+
+    async function setupFirebase() {
+      setFirebaseStatus('syncing');
+      try {
+        // Seed if empty or retrieve current collection
+        const initialData = await initializeFirestoreData();
+        if (isMounted && initialData && initialData.length > 0) {
+          setCases(initialData);
+          localStorage.setItem('smile_underwrite_cases', JSON.stringify(initialData));
+        }
+
+        // Real-time listener for live synchronization
+        unsubscribe = subscribeToCases(
+          (updatedList) => {
+            if (isMounted && updatedList.length > 0) {
+              setCases(updatedList);
+              localStorage.setItem('smile_underwrite_cases', JSON.stringify(updatedList));
+              setFirebaseStatus('synced');
+            }
+          },
+          (err) => {
+            console.error('Firestore listener error:', err);
+            if (isMounted) setFirebaseStatus('error');
+          }
+        );
+
+        if (isMounted) setFirebaseStatus('synced');
+      } catch (err) {
+        console.error('Failed to setup Firebase Firestore:', err);
+        if (isMounted) setFirebaseStatus('error');
+      }
+    }
+
+    setupFirebase();
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // Save to LocalStorage fallback whenever cases change
   useEffect(() => {
     localStorage.setItem('smile_underwrite_cases', JSON.stringify(cases));
   }, [cases]);
 
-  // Real-time Simulation Engine
+  // Real-time Simulation Engine (Adds realistic incoming cases to Firestore & State)
   useEffect(() => {
     if (!isRealtimeActive) return;
 
     const interval = setInterval(() => {
       const randomAction = Math.random();
-      if (randomAction < 0.35) {
-        // Create an incoming case or advance a case
+      if (randomAction < 0.25) {
+        // Create an incoming case
         const newRefNo = `UW-2568-${Math.floor(10000 + Math.random() * 90000)}`;
         const sampleTypes: InsuranceType[] = [
           'ประกันสุขภาพ (Health)',
@@ -139,15 +194,18 @@ export default function App() {
           ]
         };
 
+        // Save to Firestore asynchronously
+        createCaseInFirestore(newSimulatedCase).catch(e => console.warn('Simulation Firestore write:', e));
+
         setCases(prev => [newSimulatedCase, ...prev]);
 
         showToast(
           'มีงานใหม่เข้ามาในระบบ',
-          `คำขอ ${newSimulatedCase.refNo} (${newSimulatedCase.insuredName}) กำลังรอการพิจารณา`,
+          `คำขอ ${newSimulatedCase.refNo} (${newSimulatedCase.insuredName}) บันทึกสู่ Firebase สำเร็จ`,
           newSimulatedCase.isUrgent ? 'urgent' : 'info'
         );
       }
-    }, 28000);
+    }, 35000);
 
     return () => clearInterval(interval);
   }, [isRealtimeActive]);
@@ -157,6 +215,119 @@ export default function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 4500);
+  };
+
+  // Actions
+  const handleUpdateStatus = async (caseId: string, newStatus: QueueStatus, note?: string) => {
+    const targetCase = cases.find(c => c.id === caseId);
+    if (!targetCase) return;
+
+    const nowStr = new Date().toLocaleTimeString('th-TH');
+    const newHistory = [...targetCase.history];
+    
+    if (note) {
+      newHistory.unshift({
+        id: `log-${Date.now()}`,
+        timestamp: `2026-09-18 ${nowStr}`,
+        actor: 'ภานุวัฒน์ สินเจริญ (UW-02)',
+        role: 'ผู้พิจารณา',
+        action: `เปลี่ยนสถานะเป็น: ${newStatus}`,
+        note: note,
+      });
+    }
+
+    const updated: UnderwritingCase = {
+      ...targetCase,
+      status: newStatus,
+      history: newHistory,
+    };
+
+    // Update state immediately for instant responsiveness
+    setCases((prev) => prev.map((item) => (item.id === caseId ? updated : item)));
+
+    if (selectedCase && selectedCase.id === caseId) {
+      setSelectedCase(updated);
+    }
+
+    // Persist to Firebase Firestore
+    try {
+      setFirebaseStatus('syncing');
+      await saveCaseToFirestore(updated);
+      setFirebaseStatus('synced');
+    } catch (e) {
+      console.error('Failed to sync status change to Firebase:', e);
+      setFirebaseStatus('error');
+    }
+
+    showToast(
+      'อัปเดตสถานะงานสำเร็จ',
+      `ปรับสถานะเป็น "${newStatus}" และบันทึกสู่ Firebase smileUDW แล้ว`,
+      'success'
+    );
+  };
+
+  const handleAddNote = async (caseId: string, noteText: string) => {
+    const targetCase = cases.find(c => c.id === caseId);
+    if (!targetCase) return;
+
+    const nowStr = new Date().toLocaleTimeString('th-TH');
+    const newHistory = [
+      {
+        id: `log-${Date.now()}`,
+        timestamp: `2026-09-18 ${nowStr}`,
+        actor: 'ภานุวัฒน์ สินเจริญ (UW-02)',
+        role: 'ผู้พิจารณา',
+        action: 'บันทึกความเห็นเพิ่มเติม',
+        note: noteText,
+      },
+      ...targetCase.history,
+    ];
+
+    const updated: UnderwritingCase = {
+      ...targetCase,
+      history: newHistory,
+    };
+
+    setCases((prev) => prev.map((item) => (item.id === caseId ? updated : item)));
+
+    if (selectedCase && selectedCase.id === caseId) {
+      setSelectedCase(updated);
+    }
+
+    try {
+      setFirebaseStatus('syncing');
+      await saveCaseToFirestore(updated);
+      setFirebaseStatus('synced');
+    } catch (e) {
+      console.error('Failed to sync note to Firebase:', e);
+      setFirebaseStatus('error');
+    }
+
+    showToast('บันทึกข้อความสำเร็จ', 'บันทึกความเห็นเข้าสู่ Firebase สำเร็จ', 'info');
+  };
+
+  const handleCreateNewCase = async (newCaseData: Omit<UnderwritingCase, 'id'>) => {
+    const createdCase: UnderwritingCase = {
+      ...newCaseData,
+      id: `case-${Date.now()}`,
+    };
+
+    setCases(prev => [createdCase, ...prev]);
+
+    try {
+      setFirebaseStatus('syncing');
+      await createCaseInFirestore(createdCase);
+      setFirebaseStatus('synced');
+    } catch (e) {
+      console.error('Failed to create case in Firebase:', e);
+      setFirebaseStatus('error');
+    }
+
+    showToast(
+      'ส่งขออนุมัติสำเร็จ',
+      `สร้างคำขอเลขที่ ${createdCase.refNo} และบันทึกลง Firebase เรียบร้อย`,
+      'success'
+    );
   };
 
   // Status Counts Calculation
@@ -173,6 +344,7 @@ export default function App() {
       'เอกสารไม่ถูกต้อง': 0,
       'ตรวจสอบพิเศษ': 0,
       'ไม่อนุมัติ': 0,
+      'ส่งกลับแก้ไข (รอผู้แทนดำเนินการ)': 0,
     };
 
     cases.forEach((item) => {
@@ -193,7 +365,7 @@ export default function App() {
   }, [cases]);
 
   const revisedCount = useMemo(() => {
-    return (statusCounts['ใหม่(แก้ไข)'] || 0) + (statusCounts['รอดำเนินการ(แก้ไข)'] || 0);
+    return (statusCounts['ใหม่(แก้ไข)'] || 0) + (statusCounts['รอดำเนินการ(แก้ไข)'] || 0) + (statusCounts['ส่งกลับแก้ไข (รอผู้แทนดำเนินการ)'] || 0);
   }, [statusCounts]);
 
   const totalPremiumValue = useMemo(() => {
@@ -241,114 +413,28 @@ export default function App() {
     });
   }, [cases, searchQuery, selectedInsuranceType, selectedCoverageTerm, selectedStatus, filterUrgentOnly]);
 
-  // Actions
-  const handleUpdateStatus = (caseId: string, newStatus: QueueStatus, note?: string) => {
-    setCases((prev) =>
-      prev.map((item) => {
-        if (item.id === caseId) {
-          const nowStr = new Date().toLocaleTimeString('th-TH');
-          const newHistory = [...item.history];
-          
-          if (note) {
-            newHistory.unshift({
-              id: `log-${Date.now()}`,
-              timestamp: `2026-09-18 ${nowStr}`,
-              actor: 'ภานุวัฒน์ สินเจริญ (UW-02)',
-              role: 'ผู้พิจารณา',
-              action: `เปลี่ยนสถานะเป็น: ${newStatus}`,
-              note: note,
-            });
-          }
-
-          return {
-            ...item,
-            status: newStatus,
-            history: newHistory,
-          };
-        }
-        return item;
-      })
-    );
-
-    if (selectedCase && selectedCase.id === caseId) {
-      setSelectedCase(prev => prev ? { ...prev, status: newStatus } : null);
-    }
-
-    showToast(
-      'อัปเดตสถานะงานสำเร็จ',
-      `ปรับสถานะเป็น "${newStatus}" เรียบร้อยแล้ว`,
-      'success'
-    );
-  };
-
-  const handleAddNote = (caseId: string, noteText: string) => {
-    setCases((prev) =>
-      prev.map((item) => {
-        if (item.id === caseId) {
-          const nowStr = new Date().toLocaleTimeString('th-TH');
-          const newHistory = [
-            {
-              id: `log-${Date.now()}`,
-              timestamp: `2026-09-18 ${nowStr}`,
-              actor: 'ภานุวัฒน์ สินเจริญ (UW-02)',
-              role: 'ผู้พิจารณา',
-              action: 'บันทึกความเห็นเพิ่มเติม',
-              note: noteText,
-            },
-            ...item.history,
-          ];
-          return {
-            ...item,
-            history: newHistory,
-          };
-        }
-        return item;
-      })
-    );
-
-    if (selectedCase && selectedCase.id === caseId) {
-      setSelectedCase(prev => {
-        if (!prev) return null;
-        const nowStr = new Date().toLocaleTimeString('th-TH');
-        return {
-          ...prev,
-          history: [
-            {
-              id: `log-${Date.now()}`,
-              timestamp: `2026-09-18 ${nowStr}`,
-              actor: 'ภานุวัฒน์ สินเจริญ (UW-02)',
-              role: 'ผู้พิจารณา',
-              action: 'บันทึกความเห็นเพิ่มเติม',
-              note: noteText,
-            },
-            ...prev.history,
-          ]
-        };
-      });
-    }
-
-    showToast('บันทึกข้อความสำเร็จ', 'เพิ่มบันทึกการพิจารณาในประวัติของเคสแล้ว', 'info');
-  };
-
-  const handleCreateNewCase = (newCaseData: Omit<UnderwritingCase, 'id'>) => {
-    const createdCase: UnderwritingCase = {
-      ...newCaseData,
-      id: `case-${Date.now()}`,
-    };
-    setCases(prev => [createdCase, ...prev]);
-    showToast(
-      'ส่งขออนุมัติสำเร็จ',
-      `สร้างคำขอเลขที่ ${createdCase.refNo} เข้าระบบแล้ว`,
-      'success'
-    );
-  };
-
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedInsuranceType('ทั้งหมด');
     setSelectedCoverageTerm('ทั้งหมด');
     setSelectedStatus('ทั้งหมด');
     setFilterUrgentOnly(false);
+  };
+
+  const handleManualSync = async () => {
+    setFirebaseStatus('syncing');
+    try {
+      const data = await initializeFirestoreData();
+      if (data && data.length > 0) {
+        setCases(data);
+      }
+      setFirebaseStatus('synced');
+      showToast('ซิงค์ข้อมูลสำเร็จ', 'ข้อมูลตรงกับ Firestore โครงการ smileUDW เรียบร้อย', 'success');
+    } catch (e) {
+      console.error(e);
+      setFirebaseStatus('error');
+      showToast('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อ Firebase Firestore ได้', 'urgent');
+    }
   };
 
   const handleExportCSV = () => {
@@ -405,9 +491,17 @@ export default function App() {
       <UnderwritingInspectionDetailView
         caseItem={inspectingCase}
         onBack={() => setInspectingCase(null)}
-        onSaveCase={(updatedCase) => {
+        onSaveCase={async (updatedCase) => {
           setCases((prev) => prev.map((c) => (c.id === updatedCase.id ? updatedCase : c)));
-          showToast('บันทึกสำเร็จ', 'อัปเดตข้อมูลและผลการตรวจสอบเรียบร้อยแล้ว', 'success');
+          try {
+            setFirebaseStatus('syncing');
+            await saveCaseToFirestore(updatedCase);
+            setFirebaseStatus('synced');
+          } catch (e) {
+            console.error('Failed to sync updated case to Firebase:', e);
+            setFirebaseStatus('error');
+          }
+          showToast('บันทึกสำเร็จ', 'อัปเดตข้อมูลและผลการตรวจสอบสู่ Firebase smileUDW เรียบร้อยแล้ว', 'success');
           setInspectingCase(null);
         }}
       />
@@ -468,6 +562,8 @@ export default function App() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           urgentCount={urgentCount}
+          firebaseStatus={firebaseStatus}
+          onSyncNow={handleManualSync}
         />
 
         {/* Main Dashboard Body */}

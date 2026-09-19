@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "cases": {
+      "title": "Underwriting Cases",
+      "description": "All underwriting applications and queue cases with verification statuses and checkpoints",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "applicationNo": { "type": "string" },
+        "insuredName": { "type": "string" },
+        "citizenId": { "type": "string" },
+        "insuranceType": { "type": "string" },
+        "planName": { "type": "string" },
+        "premium": { "type": "number" },
+        "agentName": { "type": "string" },
+        "agentCode": { "type": "string" },
+        "agentBranch": { "type": "string" },
+        "agentPhone": { "type": "string" },
+        "status": { "type": "string" },
+        "channel": { "type": "string" },
+        "channelDetail": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "priority": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "checkpointsCount": { "type": "number" },
+        "completedCheckpoints": { "type": "number" },
+        "isAssignedToMe": { "type": "boolean" },
+        "hasDocumentError": { "type": "boolean" },
+        "documentErrorReason": { "type": "string" },
+        "hasPendingRevision": { "type": "boolean" },
+        "isSpecialAttention": { "type": "boolean" },
+        "healthDisclosure": { "type": "string" },
+        "coverageAmount": { "type": "number" },
+        "age": { "type": "number" },
+        "gender": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "history": { "type": "array" }
+      },
+      "required": ["id", "insuredName", "status"]
+    },
+    "audit_logs": {
+      "title": "Audit Logs",
+      "description": "Action history and routing decisions",
+      "type": "object",
+      "properties": {
+        "caseId": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "actor": { "type": "string" },
+        "role": { "type": "string" },
+        "action": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "required": ["caseId", "timestamp", "action"]
+    }
+  }
+}
