@@ -1,5 +1,6 @@
 import React from 'react';
-import { HeartPulse, Check, ShieldCheck, Stethoscope } from 'lucide-react';
+import { HeartPulse, Check, ShieldCheck, Stethoscope, AlertTriangle, AlertCircle, XCircle } from 'lucide-react';
+import { HealthScenarioType } from '../types';
 
 interface HealthDisclosureDocGraphicProps {
   insuredName: string;
@@ -12,6 +13,8 @@ interface HealthDisclosureDocGraphicProps {
   bp?: string;
   pulse?: string;
   isFullScreen?: boolean;
+  scenarioType?: HealthScenarioType;
+  gender?: string;
 }
 
 export const HealthDisclosureDocGraphic: React.FC<HealthDisclosureDocGraphicProps> = ({
@@ -25,9 +28,22 @@ export const HealthDisclosureDocGraphic: React.FC<HealthDisclosureDocGraphicProp
   bp = '120/80',
   pulse = '72',
   isFullScreen = false,
+  scenarioType = 'standard_normal',
+  gender = 'หญิง',
 }) => {
+  const isCyst = scenarioType === 'abnormal_surgery_cyst';
+  const isHTN = scenarioType === 'abnormal_hypertension_bmi';
+  const isTumor = scenarioType === 'abnormal_tumor_pending';
+  const isAbnormal = isCyst || isHTN || isTumor;
+
   return (
-    <div className={`w-full ${isFullScreen ? 'max-w-2xl' : 'max-w-[440px]'} bg-white text-slate-800 rounded-xl p-4 sm:p-5 border-2 border-slate-300 shadow-md font-sans select-none flex flex-col justify-between space-y-3`}>
+    <div className={`w-full ${isFullScreen ? 'max-w-2xl' : 'max-w-[440px]'} bg-white text-slate-800 rounded-xl p-4 sm:p-5 border-2 ${
+      isTumor 
+        ? 'border-rose-400 shadow-rose-100' 
+        : isAbnormal 
+          ? 'border-amber-400 shadow-amber-100' 
+          : 'border-slate-300'
+    } shadow-md font-sans select-none flex flex-col justify-between space-y-3`}>
       
       {/* Header with SiamSmile emblem */}
       <div className="border-b-2 border-blue-900 pb-2.5">
@@ -47,8 +63,14 @@ export const HealthDisclosureDocGraphic: React.FC<HealthDisclosureDocGraphicProp
           </div>
 
           <div className="text-right">
-            <span className="text-[9px] font-mono font-bold bg-blue-50 text-[#0072b2] px-2 py-0.5 rounded border border-blue-200">
-              PHDOC67090000715
+            <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${
+              isTumor
+                ? 'bg-rose-50 text-rose-800 border-rose-200'
+                : isAbnormal
+                  ? 'bg-amber-50 text-amber-900 border-amber-200'
+                  : 'bg-blue-50 text-[#0072b2] border-blue-200'
+            }`}>
+              {isCyst ? 'PHDOC67090000812' : isHTN ? 'PHDOC67090000813' : isTumor ? 'PHDOC67090000814' : 'PHDOC67090000715'}
             </span>
             <div className="text-[8px] text-slate-400 mt-0.5">แบบฟอร์ม มฐ.69/2</div>
           </div>
@@ -65,7 +87,13 @@ export const HealthDisclosureDocGraphic: React.FC<HealthDisclosureDocGraphicProp
       </div>
 
       {/* Insured Basic & Physical Info Grid */}
-      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-[10px] space-y-1.5">
+      <div className={`p-2.5 rounded-lg border text-[10px] space-y-1.5 ${
+        isTumor
+          ? 'bg-rose-50/50 border-rose-200'
+          : isAbnormal
+            ? 'bg-amber-50/50 border-amber-200'
+            : 'bg-slate-50 border-slate-200'
+      }`}>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <span className="text-slate-500">ผู้ขอเอาประกัน:</span>{' '}
@@ -84,12 +112,12 @@ export const HealthDisclosureDocGraphic: React.FC<HealthDisclosureDocGraphicProp
           </div>
           <div>
             <span className="text-slate-500">เพศ:</span>{' '}
-            <span className="text-slate-800">หญิง</span>
+            <span className="text-slate-800">{gender}</span>
           </div>
         </div>
 
         {/* Vitals Strip */}
-        <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between text-[9.5px] text-slate-700 bg-white/70 p-1.5 rounded">
+        <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between text-[9.5px] text-slate-700 bg-white/80 p-1.5 rounded">
           <div>
             ส่วนสูง: <strong className="text-slate-900">{height}</strong> ซม.
           </div>
@@ -97,10 +125,17 @@ export const HealthDisclosureDocGraphic: React.FC<HealthDisclosureDocGraphicProp
             น้ำหนัก: <strong className="text-slate-900">{weight}</strong> กก.
           </div>
           <div>
-            BMI: <strong className="text-[#0072b2] font-mono font-bold">{bmi}</strong> (ปกติ)
+            BMI: <strong className={`font-mono font-bold ${
+              parseFloat(bmi) >= 25 ? 'text-amber-800' : 'text-[#0072b2]'
+            }`}>{bmi}</strong>{' '}
+            <span className="text-[8.5px] text-slate-500">
+              {parseFloat(bmi) >= 25 ? '(เกินเกณฑ์)' : '(ปกติ)'}
+            </span>
           </div>
           <div>
-            ความดัน: <strong className="text-slate-900 font-mono">{bp}</strong>
+            ความดัน: <strong className={`font-mono ${
+              isHTN ? 'text-amber-800 font-bold' : 'text-slate-900'
+            }`}>{bp}</strong>
           </div>
           <div>
             ชีพจร: <strong className="text-slate-900 font-mono">{pulse}</strong> bpm
@@ -109,50 +144,113 @@ export const HealthDisclosureDocGraphic: React.FC<HealthDisclosureDocGraphicProp
       </div>
 
       {/* Questionnaire Quick Table */}
-      <div className="text-[9px] sm:text-[9.5px] space-y-1 border border-slate-200 rounded-lg p-2 bg-white">
+      <div className="text-[9px] sm:text-[9.5px] space-y-1.5 border border-slate-200 rounded-lg p-2.5 bg-white">
         <div className="font-bold text-slate-700 pb-1 border-b border-slate-100 flex items-center justify-between">
           <span>ข้อคำถามแถลงสุขภาพ (Medical Disclosures)</span>
-          <span className="text-emerald-700 font-semibold text-[8.5px]">แถลงปฏิเสธ (ไม่มี)</span>
+          <span className={`text-[8.5px] font-bold ${
+            isTumor ? 'text-rose-700' : isAbnormal ? 'text-amber-700' : 'text-emerald-700'
+          }`}>
+            {isTumor ? '⚠️ มีข้อแถลงวิกฤต (รอผลแล็บ)' : isAbnormal ? '⚠️ มีข้อแถลงผิดปกติ' : 'แถลงปฏิเสธ (ไม่มี)'}
+          </span>
         </div>
 
-        <div className="space-y-1 pt-1 text-slate-600">
+        <div className="space-y-1.5 pt-0.5 text-slate-600">
+          
+          {/* Question 1 */}
           <div className="flex items-center justify-between">
             <span className="truncate pr-2">1. เจ็บป่วยหรือนอนพักรักษาในโรงพยาบาลใน 5 ปี</span>
-            <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-              [✓] ไม่มี
-            </span>
+            {isCyst ? (
+              <span className="text-amber-900 font-bold shrink-0 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                [!] มี: ผ่าตัดถุงน้ำรังไข่ (ก.ย. 67)
+              </span>
+            ) : isHTN ? (
+              <span className="text-amber-900 font-bold shrink-0 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                [!] มี: ตรวจพบความดัน+ไขมัน
+              </span>
+            ) : isTumor ? (
+              <span className="text-amber-900 font-bold shrink-0 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                [!] มี: ตรวจก้อนเนื้อเต้านม
+              </span>
+            ) : (
+              <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                [✓] ไม่มี
+              </span>
+            )}
           </div>
+
+          {/* Question 2 */}
           <div className="flex items-center justify-between">
             <span className="truncate pr-2">2. โรคร้ายแรง หัวใจ เบาหวาน มะเร็ง ไต ตับ</span>
-            <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-              [✓] ไม่มี
-            </span>
+            {isHTN ? (
+              <span className="text-amber-900 font-bold shrink-0 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                [!] มี: ความดัน+ไขมัน (ทานยา)
+              </span>
+            ) : (
+              <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                [✓] ไม่มี
+              </span>
+            )}
           </div>
+
+          {/* Question 3 */}
           <div className="flex items-center justify-between">
             <span className="truncate pr-2">3. มีนัดหมายผ่าตัด หรือรอผลชิ้นเนื้อ/วินิจฉัย</span>
-            <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-              [✓] ไม่มี
-            </span>
+            {isTumor ? (
+              <span className="text-rose-900 font-bold shrink-0 bg-rose-100 px-1.5 py-0.5 rounded border border-rose-300 animate-pulse">
+                [🛑] มี: รอผลชิ้นเนื้อ Biopsy (BIRADS 4c)
+              </span>
+            ) : isCyst ? (
+              <span className="text-amber-900 font-bold shrink-0 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                [!] เคย: ผ่าตัด Laparoscopic
+              </span>
+            ) : (
+              <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                [✓] ไม่มี
+              </span>
+            )}
           </div>
+
+          {/* Question 4 */}
           <div className="flex items-center justify-between">
             <span className="truncate pr-2">4. ประวัติครอบครัวสายตรงโรคร้ายแรงก่อนอายุ 60</span>
-            <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-              [✓] ไม่มี
-            </span>
+            {isTumor ? (
+              <span className="text-amber-900 font-bold shrink-0 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                [!] มี: มารดาเคยเป็นมะเร็งเต้านม
+              </span>
+            ) : isHTN ? (
+              <span className="text-amber-900 font-bold shrink-0 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                [!] มี: บิดาเป็นโรคหลอดเลือดสมอง
+              </span>
+            ) : (
+              <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                [✓] ไม่มี
+              </span>
+            )}
           </div>
+
+          {/* Question 5 */}
           <div className="flex items-center justify-between">
             <span className="truncate pr-2">5. ประวัติสูบบุหรี่ ดื่มสุราเสี่ยง หรือสารเสพติด</span>
-            <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-              [✓] ไม่เสี่ยง
-            </span>
+            {isHTN ? (
+              <span className="text-amber-900 font-bold shrink-0 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                [!] สูบ 5-10 มวน/วัน (8 ปี)
+              </span>
+            ) : (
+              <span className="text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                [✓] ไม่เสี่ยง
+              </span>
+            )}
           </div>
+
         </div>
       </div>
 
       {/* Footer: Medical Endorsement & Stamp */}
       <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[8px] sm:text-[9px] text-slate-500">
         <div className="flex items-center space-x-1.5">
-          <div className="w-8 h-8 rounded-full border-2 border-dashed border-[#0072b2] text-[#0072b2] flex items-center justify-center font-bold text-[7px] leading-tight text-center">
+          <div className={`w-8 h-8 rounded-full border-2 border-dashed ${
+            isTumor ? 'border-rose-500 text-rose-600' : isAbnormal ? 'border-amber-600 text-amber-700' : 'border-[#0072b2] text-[#0072b2]'
+          } flex items-center justify-center font-bold text-[7px] leading-tight text-center`}>
             SS<br/>MED
           </div>
           <div>
@@ -162,10 +260,27 @@ export const HealthDisclosureDocGraphic: React.FC<HealthDisclosureDocGraphicProp
         </div>
 
         <div className="text-right">
-          <div className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-            <span>ผ่านเกณฑ์มาตรฐาน Standard</span>
-          </div>
+          {isTumor ? (
+            <div className="inline-flex items-center gap-1 font-bold text-rose-950 bg-rose-100 px-2 py-0.5 rounded border border-rose-300">
+              <XCircle className="w-3 h-3 text-rose-600 shrink-0" />
+              <span>POSTPONE: รอผลชิ้นเนื้อ</span>
+            </div>
+          ) : isHTN ? (
+            <div className="inline-flex items-center gap-1 font-bold text-amber-950 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+              <AlertTriangle className="w-3 h-3 text-amber-700 shrink-0" />
+              <span>SUBSTANDARD: ขอตรวจเพิ่ม/เพิ่มเบี้ย</span>
+            </div>
+          ) : isCyst ? (
+            <div className="inline-flex items-center gap-1 font-bold text-amber-950 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+              <AlertCircle className="w-3 h-3 text-amber-700 shrink-0" />
+              <span>PENDING APS: ขอประวัติเวชระเบียน</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+              <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+              <span>ผ่านเกณฑ์มาตรฐาน Standard</span>
+            </div>
+          )}
           <div className="text-[7.5px] text-slate-400 mt-0.5">
             ตรวจรับรองเมื่อ: 16-07-2569
           </div>

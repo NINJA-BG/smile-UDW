@@ -21,7 +21,8 @@ import {
   ClipboardCheck,
   Send,
   UserCheck,
-  BadgeAlert
+  BadgeAlert,
+  HeartPulse
 } from 'lucide-react';
 import { UnderwritingCase, QueueStatus, InsuranceType } from '../types';
 import { INSURANCE_TYPES } from '../data/mockData';
@@ -702,6 +703,17 @@ export const SmileUnderwriteQueueSection: React.FC<SmileUnderwriteQueueSectionPr
           <button
             type="button"
             onClick={() => {
+              const targetCase = cases.find(c => c.healthProfile?.isAbnormal) || cases[0];
+              onSelectCase(targetCase);
+            }}
+            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-950 rounded-lg text-xs font-bold transition-colors border border-rose-300 shadow-2xs cursor-pointer flex items-center gap-1.5"
+          >
+            <HeartPulse className="w-3.5 h-3.5 text-rose-600" />
+            <span>ทดสอบ: เคสแถลงสุขภาพผิดปกติ (ผ่าตัดซีสต์/APS)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               const targetCase = cases.find(c => c.customerChangeRequest?.source.includes('ลูกค้า')) || cases[0];
               onOpenEditStatus(targetCase);
             }}
@@ -865,7 +877,19 @@ export const SmileUnderwriteQueueSection: React.FC<SmileUnderwriteQueueSectionPr
 
                       {/* ชื่อ-สกุลผู้เอาประกัน */}
                       <td className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
-                        {c.insuredName}
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span>{c.insuredName}</span>
+                          {c.healthProfile?.isAbnormal && (
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold border ${
+                              c.healthProfile.scenarioType === 'abnormal_tumor_pending'
+                                ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                : 'bg-amber-50 text-amber-900 border-amber-200'
+                            }`}>
+                              <HeartPulse className="w-3 h-3 text-rose-500 shrink-0" />
+                              <span>{c.healthProfile.summaryFlag}</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* ชื่อ-สกุลผู้ชำระเบี้ย พร้อมป้ายแจ้งเตือนเมื่อมีการขอแก้ไขข้อมูล */}

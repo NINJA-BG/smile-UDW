@@ -41,7 +41,7 @@ import {
   BadgeAlert,
   AlertCircle
 } from 'lucide-react';
-import { UnderwritingCase, CustomerChangeRequest } from '../types';
+import { UnderwritingCase, CustomerChangeRequest, HealthScenarioType } from '../types';
 import { ThaiIdCardGraphic } from './ThaiIdCardGraphic';
 import { InspectionSummaryView } from './InspectionSummaryView';
 import { CustomerChangeRequestAlertBox } from './CustomerChangeRequestAlertBox';
@@ -199,9 +199,27 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
   const [isPayerInspectionSaved, setIsPayerInspectionSaved] = useState<boolean>(false);
 
   // Health Category Verification State (หมวดแถลงสุขภาพ)
-  const [healthVerificationStatus, setHealthVerificationStatus] = useState<'valid' | 'requires_aps' | 'invalid'>('valid');
+  const initialHealthScenario: HealthScenarioType = 
+    caseItem.healthProfile?.scenarioType ||
+    (caseItem.requiresSpecialInspection && caseItem.specialInspectionType === 'ประวัติสุขภาพ'
+      ? 'abnormal_surgery_cyst'
+      : 'standard_normal');
+  const [healthScenario, setHealthScenario] = useState<HealthScenarioType>(initialHealthScenario);
+  const [healthVerificationStatus, setHealthVerificationStatus] = useState<'valid' | 'requires_aps' | 'invalid'>(
+    caseItem.healthProfile?.scenarioType === 'abnormal_tumor_pending'
+      ? 'invalid'
+      : caseItem.healthProfile?.scenarioType === 'abnormal_surgery_cyst' || caseItem.healthProfile?.scenarioType === 'abnormal_hypertension_bmi'
+        ? 'requires_aps'
+        : 'valid'
+  );
   const [healthVerificationNote, setHealthVerificationNote] = useState<string>(
-    'ผู้เอาประกันแถลงสุขภาพปกติครบถ้วนทุกข้อ ผลดัชนีมวลกาย BMI 22.0 อยู่ในเกณฑ์มาตรฐาน ไม่พบประวัติโรคร้ายแรงหรือการรักษาใน 5 ปี ข้อมูลตรงกับเอกสารแนบ PHDOC67090000715'
+    caseItem.healthProfile?.scenarioType === 'abnormal_surgery_cyst'
+      ? 'มีประวัติผ่าตัดถุงน้ำรังไข่ (Ovarian Cystectomy) นอน รพ. 3 วัน ต้องการขอประวัติเวชระเบียน APS เพื่อตรวจผลพยาธิวิทยา (Pathology Report)'
+      : caseItem.healthProfile?.scenarioType === 'abnormal_hypertension_bmi'
+        ? 'พบความดันโลหิตสูง 148/94 mmHg, BMI 29.8 และทานยาลดไขมัน แนะนำเสนอเงื่อนไข Substandard (Extra Mortality +25%)'
+        : caseItem.healthProfile?.scenarioType === 'abnormal_tumor_pending'
+          ? 'แถลงพบก้อนเนื้อที่เต้านมและอยู่ระหว่างรอผลตรวจชิ้นเนื้อ (Biopsy) เสนอเลื่อนการรับประกัน (Postpone) จนกว่าจะทราบผลตรวจที่ชัดเจน'
+          : 'ผู้เอาประกันแถลงสุขภาพปกติครบถ้วนทุกข้อ ผลดัชนีมวลกาย BMI 22.0 อยู่ในเกณฑ์มาตรฐาน ไม่พบประวัติโรคร้ายแรงหรือการรักษาใน 5 ปี ข้อมูลตรงกับเอกสารแนบ'
   );
 
   // Document Viewer states
@@ -632,6 +650,12 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                   height={height}
                   weight={weight}
                   bmi={bmiVal}
+                  activeScenario={healthScenario}
+                  onScenarioChange={(sc, scVitals) => {
+                    setHealthScenario(sc);
+                    setHeight(scVitals.height);
+                    setWeight(scVitals.weight);
+                  }}
                   onOpenHealthDoc={() => {
                     setCurrentDocIndex(3);
                     triggerToast('แสดงเอกสารใบแถลงสุขภาพและผลตรวจคัดกรอง (PHDOC67090000715)');
@@ -1421,12 +1445,28 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900">
                       หมวดแถลงสุขภาพ (Health Declaration)
                     </h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                      {healthVerificationStatus === 'valid' ? 'Standard (เกณฑ์ปกติ)' : healthVerificationStatus === 'requires_aps' ? 'รอขอประวัติ (APS)' : 'ไม่ผ่านเกณฑ์'}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      healthScenario === 'abnormal_tumor_pending' || healthVerificationStatus === 'invalid'
+                        ? 'bg-rose-100 text-rose-800 border-rose-300'
+                        : healthScenario === 'abnormal_surgery_cyst' || healthScenario === 'abnormal_hypertension_bmi' || healthVerificationStatus === 'requires_aps'
+                          ? 'bg-amber-100 text-amber-900 border-amber-300'
+                          : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    }`}>
+                      {healthScenario === 'abnormal_tumor_pending'
+                        ? '🛑 พบประวัติวิกฤต (รอผลชิ้นเนื้อ)'
+                        : healthScenario === 'abnormal_surgery_cyst'
+                          ? '⚠️ มีประวัติผ่าตัดซีสต์ (ขอ APS)'
+                          : healthScenario === 'abnormal_hypertension_bmi'
+                            ? '⚠️ ความดัน/BMI สูง (Substandard)'
+                            : 'Standard (เกณฑ์ปกติ)'}
                     </span>
                   </div>
                   <p className="text-[11.5px] text-slate-600 mt-0.5">
-                    BMI: <strong className="text-slate-800 font-mono">{bmiVal}</strong> kg/m² • ความดัน: <strong className="text-slate-800 font-mono">120/80</strong> mmHg • คำแถลง 7 ข้อ: <strong className="text-emerald-700">ไม่มีประวัติเสี่ยง</strong>
+                    BMI: <strong className={`font-mono ${parseFloat(bmiVal) >= 25 ? 'text-amber-700' : 'text-slate-800'}`}>{bmiVal}</strong> kg/m² • 
+                    ส่วนสูง/น้ำหนัก: <strong className="text-slate-800 font-mono">{height}/{weight}</strong> • 
+                    สถานะการตรวจ: <strong className={healthVerificationStatus === 'invalid' ? 'text-rose-700' : healthVerificationStatus === 'requires_aps' ? 'text-amber-700' : 'text-emerald-700'}>
+                      {healthVerificationStatus === 'valid' ? 'ผ่านเกณฑ์ Standard' : healthVerificationStatus === 'requires_aps' ? 'ขอประวัติเวชระเบียน APS' : 'ไม่ผ่านเกณฑ์ / Postpone'}
+                    </strong>
                   </p>
                 </div>
               </div>
@@ -1591,6 +1631,7 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                       height={height}
                       weight={weight}
                       bmi={bmiVal}
+                      scenarioType={healthScenario}
                       isFullScreen={false}
                     />
                   )}
@@ -2082,6 +2123,7 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                     height={height}
                     weight={weight}
                     bmi={bmiVal}
+                    scenarioType={healthScenario}
                     isFullScreen={true}
                   />
                 </div>

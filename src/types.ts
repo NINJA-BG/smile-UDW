@@ -82,6 +82,30 @@ export interface UnderwritingCase {
   requiresSpecialInspection?: boolean; // ต้องตรวจสอบพิเศษ
   specialInspectionType?: 'เอกสารผิด' | 'ทุนสูงผิดปกติ' | 'ประวัติสุขภาพ' | 'สงสัยทุจริต' | 'อื่นๆ';
   customerChangeRequest?: CustomerChangeRequest; // ข้อมูลการแจ้งขอแก้ไขข้อมูลจากลูกค้าหรือผู้ให้บริการ
+  healthProfile?: HealthProfile; // ข้อมูลแถลงสุขภาพเชิงลึกและเคสจำลอง
+}
+
+export type HealthScenarioType = 
+  | 'standard_normal' // สุขภาพปกติ สมบูรณ์ตามเกณฑ์
+  | 'abnormal_surgery_cyst' // เคสผิดปกติ: ผ่าตัดซีสต์รังไข่ / นอน รพ. (ต้องการ APS)
+  | 'abnormal_hypertension_bmi' // เคสผิดปกติ: ความดันโลหิตสูง & ไขมันสูง (BMI 29.8 เกินเกณฑ์ / ปรับเพิ่มเบี้ย +25%)
+  | 'abnormal_tumor_pending'; // เคสผิดปกติ: ตรวจพบก้อนเนื้อเต้านมรอผล Biopsy (ระงับรับประกัน Postpone / ไม่อนุมัติ)
+
+export interface HealthProfile {
+  scenarioType: HealthScenarioType;
+  heightCm: number;
+  weightKg: number;
+  bmi: number;
+  bloodPressure: string;
+  pulseBpm: number;
+  smokingStatus: string;
+  alcoholStatus: string;
+  hasAbnormalFindings: boolean;
+  isAbnormal?: boolean;
+  abnormalSummary?: string;
+  summaryFlag?: string;
+  suggestedAction?: 'standard' | 'request_aps' | 'increase_premium' | 'decline_postpone';
+  suggestedNote?: string;
 }
 
 export interface CustomerChangeRequest {
