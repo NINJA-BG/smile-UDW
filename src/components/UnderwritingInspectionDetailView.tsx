@@ -45,6 +45,8 @@ import { UnderwritingCase, CustomerChangeRequest } from '../types';
 import { ThaiIdCardGraphic } from './ThaiIdCardGraphic';
 import { InspectionSummaryView } from './InspectionSummaryView';
 import { CustomerChangeRequestAlertBox } from './CustomerChangeRequestAlertBox';
+import { HealthDeclarationSection } from './HealthDeclarationSection';
+import { HealthDisclosureDocGraphic } from './HealthDisclosureDocGraphic';
 
 interface UnderwritingInspectionDetailViewProps {
   caseItem: UnderwritingCase;
@@ -195,6 +197,12 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
     paymentProofMatched: true,
   });
   const [isPayerInspectionSaved, setIsPayerInspectionSaved] = useState<boolean>(false);
+
+  // Health Category Verification State (หมวดแถลงสุขภาพ)
+  const [healthVerificationStatus, setHealthVerificationStatus] = useState<'valid' | 'requires_aps' | 'invalid'>('valid');
+  const [healthVerificationNote, setHealthVerificationNote] = useState<string>(
+    'ผู้เอาประกันแถลงสุขภาพปกติครบถ้วนทุกข้อ ผลดัชนีมวลกาย BMI 22.0 อยู่ในเกณฑ์มาตรฐาน ไม่พบประวัติโรคร้ายแรงหรือการรักษาใน 5 ปี ข้อมูลตรงกับเอกสารแนบ PHDOC67090000715'
+  );
 
   // Document Viewer states
   const [zoomLevel, setZoomLevel] = useState<number>(100);
@@ -464,7 +472,19 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                 <React.Fragment key={st.id}>
                   <button
                     type="button"
-                    onClick={() => setActiveStep(st.id)}
+                    onClick={() => {
+                      setActiveStep(st.id);
+                      if (st.id === 5) {
+                        setCurrentDocIndex(3);
+                        triggerToast('เข้าสู่หมวดแถลงสุขภาพ: เปิดเอกสารใบแถลงสุขภาพแนบอัตโนมัติ');
+                      } else if (st.id === 2) {
+                        setCurrentDocIndex(0);
+                      } else if (st.id === 3) {
+                        setCurrentDocIndex(1);
+                      } else if (st.id === 4) {
+                        setCurrentDocIndex(2);
+                      }
+                    }}
                     className={`flex items-center space-x-2 shrink-0 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer ${
                       isActive 
                         ? 'text-[#0072b2] font-bold bg-sky-50/80 ring-1 ring-sky-200' 
@@ -475,7 +495,10 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                   >
                     <StepIcon className={`w-4 h-4 ${isActive ? 'text-[#0072b2]' : isPassed ? 'text-emerald-600' : 'text-slate-400'}`} />
                     <span className="text-xs whitespace-nowrap">{st.label}</span>
-                    {st.id === 6 && payerVerificationStatus === 'invalid' && (
+                    {st.id === 5 && (healthVerificationStatus === 'invalid' || healthVerificationStatus === 'requires_aps') && (
+                      <span className={`w-2 h-2 rounded-full ${healthVerificationStatus === 'invalid' ? 'bg-rose-500' : 'bg-amber-500'} shrink-0`}></span>
+                    )}
+                    {st.id === 6 && (payerVerificationStatus === 'invalid' || healthVerificationStatus === 'invalid') && (
                       <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
                     )}
                   </button>
@@ -565,7 +588,21 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
             caseItem={caseItem}
             payerVerificationStatus={payerVerificationStatus}
             payerVerificationNote={payerVerificationNote}
-            onJumpToStep={(stepId) => setActiveStep(stepId)}
+            healthVerificationStatus={healthVerificationStatus}
+            healthVerificationNote={healthVerificationNote}
+            onJumpToStep={(stepId) => {
+              setActiveStep(stepId);
+              if (stepId === 5) {
+                setCurrentDocIndex(3);
+                triggerToast('เข้าสู่หมวดแถลงสุขภาพ: สลับแสดงเอกสารใบแถลงสุขภาพแนบ');
+              } else if (stepId === 2) {
+                setCurrentDocIndex(0);
+              } else if (stepId === 3) {
+                setCurrentDocIndex(1);
+              } else if (stepId === 4) {
+                setCurrentDocIndex(2);
+              }
+            }}
             onBackToInspection={() => setActiveStep(2)}
             onFinalizeCase={(updatedCase, actionType) => {
               if (onSaveCase) onSaveCase(updatedCase);
@@ -588,7 +625,70 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
           {/* LEFT COLUMN: FORM SECTIONS (Width 7/12 or 8/12) */}
           {/* ========================================================== */}
           <div className="lg:col-span-8 space-y-4">
-            
+            {activeStep === 5 ? (
+              <div className="space-y-4">
+                <HealthDeclarationSection
+                  caseItem={caseItem}
+                  height={height}
+                  weight={weight}
+                  bmi={bmiVal}
+                  onOpenHealthDoc={() => {
+                    setCurrentDocIndex(3);
+                    triggerToast('แสดงเอกสารใบแถลงสุขภาพและผลตรวจคัดกรอง (PHDOC67090000715)');
+                  }}
+                  onSaveHealthInspection={(status, note) => {
+                    setHealthVerificationStatus(status);
+                    setHealthVerificationNote(note);
+                    triggerToast(
+                      status === 'valid'
+                        ? 'บันทึกผล: แถลงสุขภาพผ่านเกณฑ์มาตรฐาน (Standard)'
+                        : status === 'requires_aps'
+                          ? 'บันทึกผล: ต้องการขอประวัติเวชระเบียน (APS) เพิ่มเติม'
+                          : 'บันทึกผล: ไม่ผ่านเกณฑ์การแถลงสุขภาพ'
+                    );
+                  }}
+                />
+
+                {/* Bottom Actions Row for Step 5 */}
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveStep(2);
+                      setCurrentDocIndex(0);
+                    }}
+                    className="px-6 py-2 rounded-lg border border-slate-300 hover:border-slate-400 hover:bg-white text-slate-700 font-semibold text-xs transition-colors cursor-pointer shadow-2xs inline-flex items-center space-x-1"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>ย้อนกลับ (ข้อมูลผู้เอาประกัน)</span>
+                  </button>
+
+                  <div className="flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      className="px-6 py-2 rounded-lg bg-[#2e7d32] hover:bg-[#256629] text-white font-semibold text-xs shadow-2xs transition-colors cursor-pointer inline-flex items-center space-x-1.5"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>บันทึกคิวงาน</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveStep(6);
+                        triggerToast('ไปยังหน้าสรุปผลการตรวจสอบเอกสารทุกหมวด (Step 6)');
+                      }}
+                      className="px-6 py-2 rounded-lg bg-[#0072b2] hover:bg-[#005a92] text-white font-semibold text-xs shadow-2xs transition-colors cursor-pointer inline-flex items-center space-x-1"
+                    >
+                      <span>ถัดไป (หน้าสรุป Step 6)</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
             {/* ---------------- CARD 1: ข้อมูลผู้เอาประกัน ---------------- */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
               
@@ -1310,6 +1410,41 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
               )}
             </div>
 
+            {/* Quick Access Card: ส่วนแถลงสุขภาพเบื้องต้น */}
+            <div className="bg-gradient-to-r from-rose-50/70 via-white to-pink-50/60 rounded-xl border border-rose-200/80 p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <HeartPulse className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                      หมวดแถลงสุขภาพ (Health Declaration)
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      {healthVerificationStatus === 'valid' ? 'Standard (เกณฑ์ปกติ)' : healthVerificationStatus === 'requires_aps' ? 'รอขอประวัติ (APS)' : 'ไม่ผ่านเกณฑ์'}
+                    </span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-600 mt-0.5">
+                    BMI: <strong className="text-slate-800 font-mono">{bmiVal}</strong> kg/m² • ความดัน: <strong className="text-slate-800 font-mono">120/80</strong> mmHg • คำแถลง 7 ข้อ: <strong className="text-emerald-700">ไม่มีประวัติเสี่ยง</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveStep(5);
+                  setCurrentDocIndex(3);
+                  triggerToast('เข้าสู่หมวดแถลงสุขภาพ: สลับแสดงเอกสารใบแถลงสุขภาพแนบ');
+                }}
+                className="px-3.5 py-2 bg-[#0072b2] hover:bg-[#005a92] text-white font-semibold text-xs rounded-lg shadow-2xs transition-colors cursor-pointer flex items-center space-x-1.5 shrink-0"
+              >
+                <span>ตรวจแถลงสุขภาพฉบับเต็ม (Step 5)</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             {/* Bottom Actions Row (matching screenshot: [ย้อนกลับ] on left, [บันทึกคิวงาน] [ถัดไป] on right) */}
             <div className="pt-2 flex items-center justify-between">
               <button
@@ -1333,7 +1468,11 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                 <button
                   type="button"
                   onClick={() => {
-                    if (activeStep < 6) {
+                    if (activeStep === 2) {
+                      setActiveStep(5);
+                      setCurrentDocIndex(3);
+                      triggerToast('ไปยังหมวดแถลงสุขภาพ (Step 5)');
+                    } else if (activeStep < 6) {
                       setActiveStep(activeStep + 1);
                       triggerToast(`เปลี่ยนไปยังขั้นตอนที่ ${activeStep + 1}`);
                     } else {
@@ -1347,7 +1486,8 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                 </button>
               </div>
             </div>
-
+            </>
+            )}
           </div>
 
           {/* ========================================================== */}
@@ -1443,20 +1583,16 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                     </div>
                   ) : (
                     /* Health Medical Form Simulation */
-                    <div className="w-full max-w-[400px] aspect-[1.5] bg-white text-slate-800 rounded-xl p-4 flex flex-col justify-between border border-slate-300 shadow-md">
-                      <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-                        <div className="font-bold text-slate-900 text-xs">ใบแถลงสุขภาพและคัดกรอง</div>
-                        <span className="text-[10px] bg-blue-100 text-[#0072b2] font-semibold px-2 py-0.5 rounded">Standard</span>
-                      </div>
-                      <div className="text-[10px] space-y-1">
-                        <div>ส่วนสูง: 165 ซม. / น้ำหนัก: 60 กก. (BMI 22.0)</div>
-                        <div>ประวัติการรักษาใน 5 ปี: <span className="text-emerald-700 font-semibold">ไม่มี</span></div>
-                        <div>โรคประจำตัว/ผ่าตัด: <span className="text-emerald-700 font-semibold">ไม่มี</span></div>
-                      </div>
-                      <div className="text-[8px] text-slate-400 border-t pt-1">
-                        แพทย์ผู้ตรวจ: ทพญ. กนกพร / ใบอนุญาต ว.44192
-                      </div>
-                    </div>
+                    <HealthDisclosureDocGraphic
+                      insuredName={`${prefix} ${firstName} ${lastName}`}
+                      insuredIdCard={idNumber}
+                      dob="24 มี.ค. 2508"
+                      age={caseItem.insuredAge || 61}
+                      height={height}
+                      weight={weight}
+                      bmi={bmiVal}
+                      isFullScreen={false}
+                    />
                   )}
                 </div>
 
@@ -1934,6 +2070,19 @@ export const UnderwritingInspectionDetailView: React.FC<UnderwritingInspectionDe
                     dobThai="24 มี.ค. 2508"
                     dobEng="24 Mar. 1965"
                     address={`${idAddress} แขวง${idSubDistrict} เขต${idDistrict} ${idProvince}`}
+                  />
+                </div>
+              ) : currentDocIndex === 3 ? (
+                <div className="w-full flex justify-center py-2">
+                  <HealthDisclosureDocGraphic
+                    insuredName={`${prefix} ${firstName} ${lastName}`}
+                    insuredIdCard={idNumber}
+                    dob="24 มี.ค. 2508"
+                    age={caseItem.insuredAge || 61}
+                    height={height}
+                    weight={weight}
+                    bmi={bmiVal}
+                    isFullScreen={true}
                   />
                 </div>
               ) : (

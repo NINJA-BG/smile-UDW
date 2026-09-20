@@ -40,6 +40,8 @@ interface InspectionSummaryViewProps {
   caseItem: UnderwritingCase;
   payerVerificationStatus: 'valid' | 'invalid';
   payerVerificationNote: string;
+  healthVerificationStatus?: 'valid' | 'requires_aps' | 'invalid';
+  healthVerificationNote?: string;
   onJumpToStep: (stepId: number) => void;
   onFinalizeCase: (
     updatedCase: UnderwritingCase,
@@ -59,6 +61,8 @@ export const InspectionSummaryView: React.FC<InspectionSummaryViewProps> = ({
   caseItem,
   payerVerificationStatus,
   payerVerificationNote,
+  healthVerificationStatus = 'valid',
+  healthVerificationNote = '',
   onJumpToStep,
   onFinalizeCase,
   onBackToInspection,
@@ -126,12 +130,20 @@ export const InspectionSummaryView: React.FC<InspectionSummaryViewProps> = ({
       stepId: 5,
       categoryName: 'หมวดที่ 5: แถลงสุขภาพ',
       icon: HeartPulse,
-      status: 'valid',
-      note: 'ผู้เอาประกันแถลงสุขภาพปกติ ไม่มีประวัติโรคร้ายแรงหรือการผ่าตัดย้อนหลัง 5 ปี',
+      status: healthVerificationStatus === 'invalid' ? 'invalid' : 'valid',
+      note: healthVerificationNote.trim()
+        ? healthVerificationNote.trim()
+        : healthVerificationStatus === 'requires_aps'
+          ? 'ต้องการขอประวัติเวชระเบียนเพิ่มเติม (APS) จากสถานพยาบาล'
+          : healthVerificationStatus === 'invalid'
+            ? 'พบข้อผิดพลาดหรือไม่ผ่านเกณฑ์การแถลงสุขภาพ'
+            : 'ผู้เอาประกันแถลงสุขภาพปกติ ไม่มีประวัติโรคร้ายแรงหรือการผ่าตัดย้อนหลัง 5 ปี (BMI 22.0)',
       checkItems: [
-        'ตอบคำถามแถลงสุขภาพครบถ้วนทุกข้อ',
-        'ไม่มีข้อยกเว้นพิเศษทางการแพทย์',
-        'ผ่านเกณฑ์การพิจารณารับประกันขั้นต้น',
+        'ตอบคำถามแถลงสุขภาพครบถ้วนทุกข้อ (7 ข้อ)',
+        'ดัชนีมวลกาย BMI 22.0 และความดัน 120/80 ปกติ',
+        healthVerificationStatus === 'requires_aps'
+          ? 'รอเอกสารประวัติเวชระเบียนเพิ่มเติม'
+          : 'ไม่มีข้อยกเว้นพิเศษทางการแพทย์',
       ],
     },
   ]);
